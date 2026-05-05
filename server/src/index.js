@@ -5,6 +5,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import cookieParser from 'cookie-parser'
+import authRoutes from './routes/authRoutes.js'
 
 dotenv.config()
 
@@ -19,6 +20,7 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(cookieParser())
+app.use('/api/auth', authRoutes)
 
 // Health check
 app.get('/', (req, res) => {
@@ -36,4 +38,4 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => {
     console.error('MongoDB connection failed:', err.message)
     process.exit(1)
-  })
+  }) 
