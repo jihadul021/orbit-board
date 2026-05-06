@@ -7,6 +7,7 @@ import morgan from 'morgan'
 import cookieParser from 'cookie-parser'
 import authRoutes from './routes/authRoutes.js'
 import groupRoutes from './routes/groupRoutes.js'
+import boardRoutes from './routes/boardRoutes.js'
 
 dotenv.config()
 
@@ -21,8 +22,10 @@ app.use(cors({
 }))
 app.use(express.json())
 app.use(cookieParser())
+
 app.use('/api/auth', authRoutes)
 app.use('/api/groups', groupRoutes)
+app.use('/api/boards', boardRoutes)
 
 
 // Health check
