@@ -8,16 +8,18 @@ import {
   leaveGroup
 } from '../controllers/groupController.js'
 import { protect } from '../middleware/protect.js'
+import { validate } from '../middleware/validate.js'
+import { createGroupSchema, inviteMemberSchema } from '../lib/validationSchemas.js'
+
 
 const router = express.Router()
-
+ 
 router.use(protect)
-
-router.post('/', createGroup)
+router.post('/', validate(createGroupSchema), createGroup)
 router.get('/', getMyGroups)
 router.get('/:id', getGroupById)
-router.post('/:id/invite', inviteMember)
+router.post('/:id/invite', validate(inviteMemberSchema), inviteMember)
 router.delete('/:id/remove/:userId', removeMember)
 router.delete('/:id/leave', leaveGroup)
-
-export default router
+ 
+export default router 
