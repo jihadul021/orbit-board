@@ -8,6 +8,8 @@ import cookieParser from 'cookie-parser'
 import authRoutes from './routes/authRoutes.js'
 import groupRoutes from './routes/groupRoutes.js'
 import boardRoutes from './routes/boardRoutes.js'
+import listRoutes from './routes/listRoutes.js'
+import articleRoutes from './routes/articleRoutes.js'
 
 dotenv.config()
 
@@ -26,7 +28,8 @@ app.use(cookieParser())
 app.use('/api/auth', authRoutes)
 app.use('/api/groups', groupRoutes)
 app.use('/api/boards', boardRoutes)
-
+app.use('/api/lists', listRoutes)
+app.use('/api/articles', articleRoutes)
 
 // Health check
 app.get('/', (req, res) => {
