@@ -100,3 +100,8 @@ export const refresh = (req, res) => {
     res.status(401).json({ message: 'Invalid or expired refresh token' })
   }
 }
+
+// @route  GET /api/auth/me
+export const getMe = async (req, res) => {
+  res.status(200).json({ user: req.user })
+}
