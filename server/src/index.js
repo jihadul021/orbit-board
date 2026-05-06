@@ -10,6 +10,8 @@ import groupRoutes from './routes/groupRoutes.js'
 import boardRoutes from './routes/boardRoutes.js'
 import listRoutes from './routes/listRoutes.js'
 import articleRoutes from './routes/articleRoutes.js'
+import { errorHandler } from './middleware/errorHandler.js'
+
 
 dotenv.config()
 
@@ -30,6 +32,10 @@ app.use('/api/groups', groupRoutes)
 app.use('/api/boards', boardRoutes)
 app.use('/api/lists', listRoutes)
 app.use('/api/articles', articleRoutes)
+
+
+
+app.use(errorHandler)
 
 // Health check
 app.get('/', (req, res) => {
