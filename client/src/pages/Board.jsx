@@ -2,18 +2,19 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
+import ArticleModal from '../components/ArticleModal'
 
 const StatusBadge = ({ status }) => {
   const styles = {
     draft: 'bg-gray-100 text-gray-700',
     in_review: 'bg-amber-100 text-amber-700',
-    approved: 'bg-blue-100 text-blue-700',
+    edited: 'bg-blue-100 text-blue-700',
     published: 'bg-emerald-100 text-emerald-700',
   }
   const labels = {
     draft: 'Draft',
     in_review: 'In Review',
-    approved: 'Approved',
+    edited: 'Edited',
     published: 'Published',
   }
   return (
@@ -206,30 +207,26 @@ export default function Board() {
 
       {/* Article Modal */}
       {selectedArticle && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h2 className="font-bold text-lg text-slate-800">{selectedArticle.title}</h2>
-                <p className="text-xs text-slate-500 mt-0.5">by {selectedArticle.author?.name} · <StatusBadge status={selectedArticle.status} /></p>
-              </div>
-              <button onClick={() => setSelectedArticle(null)} className="text-gray-400 hover:text-slate-800 p-2 hover:bg-gray-100 rounded-full">✕</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <textarea
-                className="w-full h-64 resize-none border border-gray-200 rounded-lg p-4 text-slate-700 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                defaultValue={selectedArticle.body ? JSON.stringify(selectedArticle.body) : ''}
-                placeholder="Start writing..."
-              />
-            </div>
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button onClick={() => setSelectedArticle(null)} className="text-sm text-slate-600 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
-              <button className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">Save</button>
-            </div>
-          </div>
-        </div>
+          <ArticleModal
+            article={selectedArticle}
+            myRole={myRole}
+            onClose={() => setSelectedArticle(null)}
+            onSave={(updated) => {
+              if (updated._deleted) {
+                setArticles(prev => ({
+                  ...prev,
+                  [updated.list]: (prev[updated.list] || []).filter(a => a._id !== updated._id)
+                }))
+              } else {
+                setArticles(prev => ({
+                  ...prev,
+                  [updated.list]: (prev[updated.list] || []).map(a => a._id === updated._id ? updated : a)
+                }))
+              }
+            }}
+          />
       )}
-
+      
     </div>
   )
 }
