@@ -5,11 +5,12 @@ import Register from './pages/auth/Register'
 import Groups from './pages/Groups'
 import Boards from './pages/Boards'
 import Board from './pages/Board'
+import Layout from './components/Layout'
 
 const ProtectedRoute = ({ children }) => {
   const user = useAuthStore((state) => state.user)
   if (!user) return <Navigate to="/login" replace />
-  return children
+  return <Layout>{children}</Layout>
 }
 
 export default function App() {

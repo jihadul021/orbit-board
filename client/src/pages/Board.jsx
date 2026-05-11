@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 import ArticleModal from '../components/ArticleModal'
+import PageHeader from '../components/PageHeader'
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -103,6 +104,10 @@ export default function Board() {
     <div className="h-screen flex flex-col bg-gray-50">
 
       {/* Header */}
+      <PageHeader
+        title={board?.name || 'Board'}
+        subtitle={`${board?.members.length || 0} members`}
+      />
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
