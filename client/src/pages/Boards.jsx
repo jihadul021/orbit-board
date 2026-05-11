@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
+import PageHeader from '../components/PageHeader'
 
 export default function Boards() {
   const { id: groupId } = useParams()
@@ -55,7 +56,20 @@ export default function Boards() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
+      <PageHeader
+        title={group?.name || 'Boards'}
+        subtitle={`${group?.members.length || 0} members`}
+        actions={
+          isAdmin && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              + New Board
+            </button>
+          )
+        }
+      />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
