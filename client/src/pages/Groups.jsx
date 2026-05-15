@@ -49,7 +49,7 @@ export default function Groups() {
     logout()
     navigate('/login')
   }
-v
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

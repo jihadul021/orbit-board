@@ -112,21 +112,30 @@ export const addMember = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // Check if already a member
-    const alreadyMember = board.members.some(m => m.user.equals(userToAdd._id))
-    if (alreadyMember) {
+    // Check if already a board member
+    const alreadyBoardMember = board.members.some(m => m.user.equals(userToAdd._id))
+    if (alreadyBoardMember) {
       return res.status(400).json({ message: 'User is already a member of this board' })
     }
 
-    // Check if user is in the group
+    // Auto-add to group if not already a member
     const group = await Group.findById(board.group)
-    const inGroup = group.members.some(m => m.user.equals(userToAdd._id))
-    if (!inGroup) {
-      return res.status(400).json({ message: 'User must be a group member first' })
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' })
     }
 
+    const alreadyGroupMember = group.members.some(m => m.user.equals(userToAdd._id))
+    if (!alreadyGroupMember) {
+      group.members.push({ user: userToAdd._id })
+      await group.save()
+    }
+
+    // Add to board
     board.members.push({ user: userToAdd._id, role: role || 'writer' })
     await board.save()
+
+    // Populate and return
+    await board.populate('members.user', 'name email profilePic')
 
     res.status(200).json({ message: 'Member added successfully', board })
 

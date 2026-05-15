@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 import ArticleModal from '../components/ArticleModal'
-import PageHeader from '../components/PageHeader'
+// import PageHeader from '../components/PageHeader'
+import BoardMembersModal from '../components/BoardMembersModal'
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -37,6 +38,8 @@ export default function Board() {
   const [listName, setListName] = useState('')
   const [showAddArticle, setShowAddArticle] = useState(null)
   const [articleTitle, setArticleTitle] = useState('')
+  const [showMembers, setShowMembers] = useState(false)
+  const [groupName, setGroupName] = useState('')
 
   useEffect(() => {
     fetchBoard()
@@ -48,11 +51,16 @@ export default function Board() {
         axiosInstance.get(`/boards/${boardId}`),
         axiosInstance.get(`/lists/board/${boardId}`)
       ])
-      setBoard(boardRes.data.board)
+      const fetchedBoard = boardRes.data.board
+      setBoard(fetchedBoard)
+
+      // fetch group name
+      const groupRes = await axiosInstance.get(`/groups/${fetchedBoard.group}`)
+      setGroupName(groupRes.data.group.name)
+
       const fetchedLists = listsRes.data.lists
       setLists(fetchedLists)
 
-      // Fetch articles for each list
       const articleMap = {}
       await Promise.all(
         fetchedLists.map(async (list) => {
@@ -67,7 +75,6 @@ export default function Board() {
       setLoading(false)
     }
   }
-
   const myRole = board?.members.find(m => m.user._id === user?._id)?.role
 
   const handleAddList = async (e) => {
@@ -103,11 +110,26 @@ export default function Board() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
 
-      {/* Header */}
-      <PageHeader
-        title={board?.name || 'Board'}
-        subtitle={`${board?.members.length || 0} members`}
-      />
+  {/* Header */}
+  <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
+    <div className="flex items-center space-x-2 text-sm">
+      <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
+      <span className="text-slate-300">/</span>
+      <Link to={`/groups/${board?.group}`} className="text-slate-400 hover:text-indigo-600 transition-colors">
+        {groupName}
+      </Link>
+      <span className="text-slate-300">/</span>
+      <span className="text-slate-800 font-semibold">{board?.name}</span>
+    </div>
+    <div className="flex items-center space-x-3">
+      <button
+        onClick={() => setShowMembers(true)}
+        className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+      >
+        👥 Members
+      </button>
+    </div>
+  </div>
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
@@ -231,7 +253,15 @@ export default function Board() {
             }}
           />
       )}
-      
+      {/* Board Members Modal */}
+      {showMembers && board && (
+        <BoardMembersModal
+          board={board}
+          myRole={myRole}
+          onClose={() => setShowMembers(false)}
+          onUpdate={(updatedBoard) => setBoard(updatedBoard)}
+        />
+      )}
     </div>
   )
 }

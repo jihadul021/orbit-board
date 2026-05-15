@@ -15,29 +15,29 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuthStore()
   const params = useParams()
 
-  const [group, setGroup] = useState(null)
   const [boards, setBoards] = useState([])
   const [board, setBoard] = useState(null)
 
-  // Detect which page we're on
   const isGroupsPage = location.pathname === '/'
   const isBoardsPage = location.pathname.startsWith('/groups/')
   const isBoardPage = location.pathname.startsWith('/boards/')
 
   useEffect(() => {
-    if (isBoardsPage && params.id) {
-      fetchGroup(params.id)
-      fetchBoards(params.id)
-    }
     if (isBoardPage && params.id) {
       fetchBoard(params.id)
     }
   }, [location.pathname, params.id])
 
-  const fetchGroup = async (groupId) => {
+  useEffect(() => {
+    if (board?.group) {
+      fetchBoards(board.group)
+    }
+  }, [board])
+
+  const fetchBoard = async (boardId) => {
     try {
-      const res = await axiosInstance.get(`/groups/${groupId}`)
-      setGroup(res.data.group)
+      const res = await axiosInstance.get(`/boards/${boardId}`)
+      setBoard(res.data.board)
     } catch (err) {
       console.error(err)
     }
@@ -47,15 +47,6 @@ export default function Sidebar({ collapsed, onToggle }) {
     try {
       const res = await axiosInstance.get(`/boards/group/${groupId}`)
       setBoards(res.data.boards)
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const fetchBoard = async (boardId) => {
-    try {
-      const res = await axiosInstance.get(`/boards/${boardId}`)
-      setBoard(res.data.board)
     } catch (err) {
       console.error(err)
     }
@@ -93,115 +84,83 @@ export default function Sidebar({ collapsed, onToggle }) {
         </button>
       </div>
 
-      {/* Nav Content */}
+      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1">
 
         {/* Groups Page */}
         {isGroupsPage && (
-          <>
-            {!collapsed && (
-              <p className="text-xs text-slate-500 uppercase tracking-wider px-3 mb-2 font-semibold">
-                Navigation
-              </p>
-            )}
-            <Link
-              to="/"
-              className="flex items-center px-3 py-2.5 rounded-lg bg-indigo-600 text-white"
-            >
-              <span className="text-lg">🏠</span>
-              {!collapsed && <span className="ml-3 font-medium text-sm">Your Groups</span>}
-            </Link>
-          </>
+          <Link
+            to="/"
+            className="flex items-center px-3 py-2.5 rounded-lg bg-indigo-600 text-white"
+          >
+            <span className="text-lg">🏠</span>
+            {!collapsed && <span className="ml-3 font-medium text-sm">Your Groups</span>}
+          </Link>
         )}
 
         {/* Boards Page */}
         {isBoardsPage && (
-          <>
-            <Link
-              to="/"
-              className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
-            >
-              <span className="text-lg">←</span>
-              {!collapsed && <span className="ml-3 text-sm">All Groups</span>}
-            </Link>
-
-            {!collapsed && group && (
-              <div className="px-3 py-2 mt-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-3">
-                  {group.name}
-                </p>
-                {boards.length === 0 ? (
-                  <p className="text-xs text-slate-500">No boards yet</p>
-                ) : (
-                  <div className="space-y-1">
-                    {boards.map(b => (
-                      <Link
-                        key={b._id}
-                        to={`/boards/${b._id}`}
-                        className="flex items-center px-2 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm"
-                      >
-                        <div className="w-6 h-6 bg-slate-700 rounded flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
-                          {b.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="truncate">{b.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+          <Link
+            to="/"
+            className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <span className="text-lg">←</span>
+            {!collapsed && <span className="ml-3 text-sm">All Groups</span>}
+          </Link>
         )}
 
         {/* Board Page */}
-        {isBoardPage && (
+        {isBoardPage && board && (
           <>
             <Link
-              to={board ? `/groups/${board.group}` : '/'}
+              to={`/groups/${board.group}`}
               className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
             >
               <span className="text-lg">←</span>
               {!collapsed && <span className="ml-3 text-sm">All Boards</span>}
             </Link>
 
-            {!collapsed && board && (
-              <div className="px-3 py-2 mt-2">
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">
-                  Board
-                </p>
-                <p className="text-white font-semibold text-sm mb-4">{board.name}</p>
+            {!collapsed && (
+              <div className="px-3 py-2 mt-2 space-y-4">
+
+                {/* Board Name */}
+                <div>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Board</p>
+                  <p className="text-white font-semibold text-sm">{board.name}</p>
+                </div>
 
                 {/* My Role */}
                 {myRole && (
-                  <div className="mb-4">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
-                      My Role
-                    </p>
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">My Role</p>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${roleColors[myRole]}`}>
                       {myRole}
                     </span>
                   </div>
                 )}
 
-                {/* Members */}
-                <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">
-                  Members
-                </p>
-                <div className="space-y-2">
-                  {board.members.map((m) => (
-                    <div key={m.user._id} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {m.user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <span className="text-sm text-slate-300 truncate max-w-24">{m.user.name}</span>
-                      </div>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium capitalize ${roleColors[m.role]}`}>
-                        {m.role}
-                      </span>
+                {/* Other Boards */}
+                {boards.length > 1 && (
+                  <div>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-2">Other Boards</p>
+                    <div className="space-y-1">
+                      {boards
+                        .filter(b => b._id !== board._id)
+                        .map(b => (
+                          <Link
+                            key={b._id}
+                            to={`/boards/${b._id}`}
+                            className="flex items-center px-2 py-2 rounded-lg hover:bg-slate-800 transition-colors text-sm"
+                          >
+                            <div className="w-6 h-6 bg-slate-700 rounded flex items-center justify-center text-xs font-bold mr-2 flex-shrink-0">
+                              {b.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="truncate">{b.name}</span>
+                          </Link>
+                        ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
             )}
           </>
