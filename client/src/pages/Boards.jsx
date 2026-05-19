@@ -168,35 +168,35 @@ export default function Boards() {
           >
             👥 Members ({group?.members.length || 0})
           </button>
-          <div className="relative">
-            <button
-              onClick={() => setShowSettingsMenu(prev => !prev)}
-              className="text-sm border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-            >
-              Settings
-            </button>
-            {showSettingsMenu && (
-              <div className="absolute right-0 top-12 w-52 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
-                {isOwner && (
+          {isOwner && (
+            <div className="relative">
+              <button
+                onClick={() => setShowSettingsMenu(prev => !prev)}
+                className="text-sm border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+              >
+                Settings
+              </button>
+              {showSettingsMenu && (
+                <div className="absolute right-0 top-12 w-52 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
                   <button
                     onClick={openRenameGroup}
                     className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-gray-50 rounded-lg"
                   >
                     Change Group Name
                   </button>
-                )}
-                <button
-                  onClick={() => {
-                    navigate(isClosedBoardsPage ? `/groups/${groupId}` : `/groups/${groupId}/closed`)
-                    setShowSettingsMenu(false)
-                  }}
-                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-gray-50 rounded-lg"
-                >
-                  {isClosedBoardsPage ? 'Back to Boards' : 'Closed Boards'}
-                </button>
-              </div>
-            )}
-          </div>
+                  <button
+                    onClick={() => {
+                      navigate(isClosedBoardsPage ? `/groups/${groupId}` : `/groups/${groupId}/closed`)
+                      setShowSettingsMenu(false)
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-gray-50 rounded-lg"
+                  >
+                    {isClosedBoardsPage ? 'Back to Boards' : 'Closed Boards'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {isOwner && (
             <button
               onClick={() => setShowCreate(true)}
@@ -274,12 +274,12 @@ export default function Boards() {
           ) : (
             <div className="space-y-10">
               <section>
-                <div className="flex items-center justify-between mb-4">
-                  <div>
+                {/* <div className="flex items-center justify-between mb-4"> */}
+                  {/* <div>
                     <h2 className="text-lg font-semibold text-slate-800">Active Boards</h2>
                     <p className="text-sm text-slate-500">Open boards your team can keep working in.</p>
                   </div>
-                </div>
+                </div> */}
 
                 {boards.length === 0 ? (
                   <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-10 text-center text-slate-400">

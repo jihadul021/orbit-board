@@ -12,8 +12,8 @@ const articleSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'in_review', 'approved', 'published'],
-    default: 'draft'
+    enum: ['pending', 'completed', 'in_review', 'reviewed', 'published'],
+    default: 'pending'
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,

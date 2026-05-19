@@ -65,35 +65,8 @@ export default function Groups() {
             </button>
           }
         />
-      {/* <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
-          <span className="text-lg font-bold text-slate-800">OrbitBoard</span>
-        </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-slate-600">Hi, <strong>{user?.name}</strong></span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-slate-500 hover:text-red-600 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      </header> */}
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Your Groups</h1>
-            <p className="text-slate-500 text-sm mt-1">Select a group to enter its workspace</p>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-          >
-            + New Group
-          </button>
-        </div> */}
 
         {loading ? (
           <p className="text-slate-500 text-sm">Loading groups...</p>

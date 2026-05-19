@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import axiosInstance from '../api/axios'
+import useAuthStore from '../store/authStore'
 
 const roleColors = {
   admin: 'bg-red-100 text-red-700',
@@ -8,6 +9,7 @@ const roleColors = {
 }
 
 export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) {
+  const { user } = useAuthStore()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('writer')
   const [adding, setAdding] = useState(false)
@@ -121,7 +123,10 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
               Members ({members.length})
             </h3>
             <div className="space-y-3">
-              {members.map((m) => (
+              {members.map((m) => {
+                const isCurrentAdmin = m.user._id === user?._id && m.role === 'admin'
+
+                return (
                 <div
                   key={m.user._id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
@@ -142,6 +147,7 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
                         <select
                           value={m.role}
                           onChange={(e) => handleRoleChange(m.user._id, e.target.value)}
+                          disabled={isCurrentAdmin}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                         >
                           <option value="writer">Writer</option>
@@ -162,7 +168,8 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 

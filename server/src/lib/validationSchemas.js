@@ -61,7 +61,7 @@ export const updateArticleSchema = z.object({
 })
 
 export const updateArticleStatusSchema = z.object({
-  status: z.enum(['draft', 'in_review', 'approved', 'published'])
+  status: z.enum(['pending', 'completed', 'in_review', 'reviewed', 'published'])
 })
 
 export const moveArticleSchema = z.object({
