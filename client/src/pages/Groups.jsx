@@ -82,7 +82,7 @@ export default function Groups() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8">
+        {/* <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">Your Groups</h1>
             <p className="text-slate-500 text-sm mt-1">Select a group to enter its workspace</p>
@@ -93,7 +93,7 @@ export default function Groups() {
           >
             + New Group
           </button>
-        </div>
+        </div> */}
 
         {loading ? (
           <p className="text-slate-500 text-sm">Loading groups...</p>

@@ -110,26 +110,6 @@ export default function Board() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
 
-  {/* Header */}
-  <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-    <div className="flex items-center space-x-2 text-sm">
-      <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
-      <span className="text-slate-300">/</span>
-      <Link to={`/groups/${board?.group}`} className="text-slate-400 hover:text-indigo-600 transition-colors">
-        {groupName}
-      </Link>
-      <span className="text-slate-300">/</span>
-      <span className="text-slate-800 font-semibold">{board?.name}</span>
-    </div>
-    <div className="flex items-center space-x-3">
-      <button
-        onClick={() => setShowMembers(true)}
-        className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-      >
-        👥 Members
-      </button>
-    </div>
-  </div>
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
@@ -140,7 +120,13 @@ export default function Board() {
           <span className="text-sm font-semibold text-slate-800">{board?.name}</span>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium capitalize">{myRole}</span>
+                <button
+                onClick={() => setShowMembers(true)}
+                className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+              >
+                👥 Members
+              </button>
+          {/* <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium capitalize">{myRole}</span> */}
         </div>
       </header>
 

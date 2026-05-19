@@ -81,7 +81,7 @@ export default function Boards() {
       </header>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
-        <div className="flex items-center justify-between mb-8">
+        {/* <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">{group?.name}</h1>
             <p className="text-slate-500 text-sm mt-1">{group?.members.length} members</p>
@@ -94,7 +94,7 @@ export default function Boards() {
               + New Board
             </button>
           )}
-        </div>
+        </div> */}
 
         {boards.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
