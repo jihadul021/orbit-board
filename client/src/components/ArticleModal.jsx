@@ -4,15 +4,17 @@ import ArticleEditor from './ArticleEditor'
 
 const StatusBadge = ({ status }) => {
   const styles = {
-    draft: 'bg-gray-100 text-gray-700',
+    pending: 'bg-gray-100 text-gray-700',
+    completed: 'bg-cyan-100 text-cyan-700',
     in_review: 'bg-amber-100 text-amber-700',
-    edited: 'bg-blue-100 text-blue-700',
+    reviewed: 'bg-blue-100 text-blue-700',
     published: 'bg-emerald-100 text-emerald-700',
   }
   const labels = {
-    draft: 'Draft',
+    pending: 'Pending',
+    completed: 'Completed',
     in_review: 'In Review',
-    edited: 'Edited',
+    reviewed: 'Reviewed',
     published: 'Published',
   }
   return (
@@ -23,12 +25,12 @@ const StatusBadge = ({ status }) => {
 }
 
 const statusTransitions = {
-  writer: ['draft', 'published'],
-  editor: ['draft', 'in_review', 'edited', 'published'],
-  admin: ['draft', 'in_review', 'edited', 'published'],
+  writer: ['pending', 'completed', 'published'],
+  editor: ['in_review', 'reviewed', 'published'],
+  admin: [ 'in_review', 'reviewed', 'published'],
 }
 
-export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false }) {
+export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false, currentUserId }) {
   const [title, setTitle] = useState(article.title)
   const [body, setBody] = useState(article.body || '')
   const [status, setStatus] = useState(article.status)
@@ -152,7 +154,9 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
     }
   }
 
-  const availableStatuses = statusTransitions[myRole] || []
+  const roleStatuses = statusTransitions[myRole] || []
+  const availableStatuses = roleStatuses.includes(status) ? roleStatuses : [status, ...roleStatuses]
+  const canDelete = !isReadOnly && (myRole === 'admin' || article.author?._id === currentUserId)
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
@@ -192,12 +196,21 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
               {error}
             </div>
           )}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Article Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              readOnly={isReadOnly}
+              placeholder="Article title..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 read-only:bg-slate-50"
+            />
+          </div>
           <ArticleEditor
             content={body}
             onChange={setBody}
             editable={!isReadOnly}
-            title={title}
-            onTitleChange={setTitle}
           />
         </div>
 
@@ -218,7 +231,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
             </span>
           </div>
           <div className="flex items-center space-x-3">
-            {myRole === 'admin' && !isReadOnly && (
+            {canDelete && (
               <button
                 onClick={handleDelete}
                 className="text-sm text-red-600 hover:text-red-700 px-4 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition-colors"

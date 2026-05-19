@@ -13,7 +13,7 @@ const ToolbarButton = ({ onClick, active, children }) => (
   </button>
 )
 
-export default function ArticleEditor({ content, onChange, editable = true, title, onTitleChange }) {
+export default function ArticleEditor({ content, onChange, editable = true }) {
   const editor = useEditor({
     extensions: [StarterKit],
     content: content || '',
@@ -71,18 +71,6 @@ export default function ArticleEditor({ content, onChange, editable = true, titl
           <ToolbarButton onClick={() => editor.chain().focus().redo().run()}>↪</ToolbarButton>
         </div>
       )}
-
-      {/* Title inside editor */}
-      <div className="px-6 pt-6 pb-2 border-b border-gray-100">
-        <input
-          type="text"
-          value={title || ''}
-          onChange={(e) => onTitleChange?.(e.target.value)}
-          readOnly={!editable}
-          placeholder="Article title..."
-          className="w-full text-2xl font-bold text-slate-800 border-none outline-none bg-transparent placeholder-gray-300"
-        />
-      </div>
 
       {/* Editor Area */}
       <EditorContent

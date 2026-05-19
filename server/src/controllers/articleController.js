@@ -150,10 +150,10 @@ export const updateArticleStatus = async (req, res) => {
 
     if (!ensureBoardIsActive(board, res)) return
 
-    // Writers can only move to in_review
-    // Editors and admins can move to approved or published
-    const writerAllowed = ['draft', 'in_review']
-    const editorAllowed = ['draft', 'in_review', 'approved', 'published']
+    // Writers can move articles to completed and published.
+    // Editors and admins can move an article through the full workflow.
+    const writerAllowed = ['pending', 'completed', 'published']
+    const editorAllowed = ['pending', 'completed', 'in_review', 'reviewed', 'published']
 
     const allowed = requester.role === 'writer' ? writerAllowed : editorAllowed
 
