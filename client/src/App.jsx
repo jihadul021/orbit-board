@@ -21,6 +21,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
         <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
+        <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
         <Route path="/boards/:id" element={<ProtectedRoute><Board /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>

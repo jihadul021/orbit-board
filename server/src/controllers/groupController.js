@@ -56,6 +56,32 @@ export const getGroupById = async (req, res) => {
   }
 }
 
+// @route  PATCH /api/groups/:id
+export const updateGroup = async (req, res) => {
+  try {
+    const { name } = req.body
+
+    const group = await Group.findById(req.params.id)
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' })
+    }
+
+    if (!group.owner.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Only the group owner can rename the group' })
+    }
+
+    group.name = name
+    await group.save()
+    await group.populate('owner', 'name email profilePic')
+    await group.populate('members.user', 'name email profilePic')
+
+    res.status(200).json({ message: 'Group updated', group })
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
+
 // @route  POST /api/groups/:id/invite
 export const inviteMember = async (req, res) => {
   try {

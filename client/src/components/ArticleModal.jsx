@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import axiosInstance from '../api/axios'
 import ArticleEditor from './ArticleEditor'
 
@@ -28,7 +28,7 @@ const statusTransitions = {
   admin: ['draft', 'in_review', 'edited', 'published'],
 }
 
-export default function ArticleModal({ article, myRole, onClose, onSave }) {
+export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false }) {
   const [title, setTitle] = useState(article.title)
   const [body, setBody] = useState(article.body || '')
   const [status, setStatus] = useState(article.status)
@@ -47,8 +47,38 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
   useEffect(() => { latestTitle.current = title }, [title])
   useEffect(() => { latestStatus.current = status }, [status])
 
+  // background save — does NOT call onSave, does NOT close modal
+  async function backgroundSave(overrides = {}) {
+    setSaveStatus('saving')
+    try {
+      const res = await axiosInstance.patch(`/articles/${article._id}`, {
+        title: overrides.title ?? latestTitle.current,
+        body: overrides.body ?? latestBody.current,
+      })
+
+      const currentStatus = overrides.status ?? latestStatus.current
+      let updatedArticle = res.data.article
+      if (currentStatus !== article.status) {
+        const statusRes = await axiosInstance.patch(`/articles/${article._id}/status`, {
+          status: currentStatus,
+        })
+        updatedArticle = statusRes.data.article
+      }
+      onSave(updatedArticle)
+      setSaveStatus('saved')
+    } catch (err) {
+      setSaveStatus('unsaved')
+      setError(err.response?.data?.message || 'Auto-save failed')
+    }
+  }
+
+  const runBackgroundSave = useEffectEvent((overrides = {}) => {
+    backgroundSave(overrides)
+  })
+
   // Auto-save on body or title change
   useEffect(() => {
+    if (isReadOnly) return
     if (isFirstRender.current) {
       isFirstRender.current = false
       return
@@ -56,44 +86,20 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
     setSaveStatus('unsaved')
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      backgroundSave()
+      runBackgroundSave()
     }, 2000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [body, title])
+  }, [body, title, isReadOnly])
 
   // Save immediately on status change
   useEffect(() => {
+    if (isReadOnly) return
     if (isFirstStatusRender.current) {
       isFirstStatusRender.current = false
       return
     }
-    backgroundSave()
-  }, [status])
-
-  // background save — does NOT call onSave, does NOT close modal
-    const backgroundSave = async (overrides = {}) => {
-    setSaveStatus('saving')
-    try {
-        const res = await axiosInstance.patch(`/articles/${article._id}`, {
-        title: overrides.title ?? latestTitle.current,
-        body: overrides.body ?? latestBody.current,
-        })
-
-        const currentStatus = overrides.status ?? latestStatus.current
-        let updatedArticle = res.data.article
-        if (currentStatus !== article.status) {
-        const statusRes = await axiosInstance.patch(`/articles/${article._id}/status`, {
-            status: currentStatus,
-        })
-        updatedArticle = statusRes.data.article
-        }
-        onSave(updatedArticle)
-        setSaveStatus('saved')
-    } catch (err) {
-        setSaveStatus('unsaved')
-        setError(err.response?.data?.message || 'Auto-save failed')
-    }
-    }
+    runBackgroundSave()
+  }, [status, isReadOnly])
 
   // manual save — saves and updates the card in board
   const handleSave = async () => {
@@ -121,17 +127,19 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
 
   // close — background save first, then close
     const handleClose = async () => {
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    
-    // Pass current values explicitly so nothing is stale
-    await backgroundSave({
-        title: latestTitle.current,
-        body: latestBody.current,
-        status: latestStatus.current,
-    })
-
-    onClose()
+    if (isReadOnly) {
+      onClose()
+      return
     }
+
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    await backgroundSave({
+      title: latestTitle.current,
+      body: latestBody.current,
+      status: latestStatus.current,
+    })
+    onClose()
+  }
 
   const handleDelete = async () => {
     if (!confirm('Delete this article?')) return
@@ -159,6 +167,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
+              disabled={isReadOnly}
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
             >
               {availableStatuses.map(s => (
@@ -186,7 +195,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
           <ArticleEditor
             content={body}
             onChange={setBody}
-            editable={true}
+            editable={!isReadOnly}
             title={title}
             onTitleChange={setTitle}
           />
@@ -202,13 +211,14 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
               saveStatus === 'saving' ? 'text-amber-500' :
               'text-slate-400'
             }`}>
-              {saveStatus === 'saved' ? '✓ Saved' :
+              {isReadOnly ? 'Read only' :
+               saveStatus === 'saved' ? '✓ Saved' :
                saveStatus === 'saving' ? 'Saving...' :
                '● Unsaved changes'}
             </span>
           </div>
           <div className="flex items-center space-x-3">
-            {myRole === 'admin' && (
+            {myRole === 'admin' && !isReadOnly && (
               <button
                 onClick={handleDelete}
                 className="text-sm text-red-600 hover:text-red-700 px-4 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
@@ -222,12 +232,14 @@ export default function ArticleModal({ article, myRole, onClose, onSave }) {
             >
               Close
             </button>
-            <button
-              onClick={handleSave}
-              className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-            >
-              Save
-            </button>
+            {!isReadOnly && (
+              <button
+                onClick={handleSave}
+                className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
+              >
+                Save
+              </button>
+            )}
           </div>
         </div>
 

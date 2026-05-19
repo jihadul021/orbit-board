@@ -90,6 +90,33 @@ export const getBoardById = async (req, res) => {
   }
 }
 
+// @route  PATCH /api/boards/:id
+export const updateBoard = async (req, res) => {
+  try {
+    const { name } = req.body
+
+    const board = await Board.findById(req.params.id)
+    if (!board) {
+      return res.status(404).json({ message: 'Board not found' })
+    }
+
+    const requester = board.members.find(m => m.user.equals(req.user._id))
+    if (!requester || requester.role !== 'admin') {
+      return res.status(403).json({ message: 'Only board admins can rename the board' })
+    }
+
+    board.name = name
+    await board.save()
+    await board.populate('createdBy', 'name email profilePic')
+    await board.populate('members.user', 'name email profilePic')
+
+    res.status(200).json({ message: 'Board updated', board })
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
+
 // @route  POST /api/boards/:id/members
 export const addMember = async (req, res) => {
   try {

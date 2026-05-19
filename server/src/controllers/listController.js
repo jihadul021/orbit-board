@@ -1,6 +1,15 @@
 import List from '../models/List.js'
 import Board from '../models/Board.js'
 
+const ensureBoardIsActive = (board, res) => {
+  if (board.status === 'closed') {
+    res.status(403).json({ message: 'This board is closed. Reopen it to make changes.' })
+    return false
+  }
+
+  return true
+}
+
 // @route  POST /api/lists
 export const createList = async (req, res) => {
   try {
@@ -16,6 +25,8 @@ export const createList = async (req, res) => {
     if (!isMember) {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
+
+    if (!ensureBoardIsActive(board, res)) return
 
     const list = await List.create({
       name,
@@ -95,6 +106,8 @@ export const archiveList = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
 
+    if (!ensureBoardIsActive(board, res)) return
+
     list.isArchived = true
     await list.save()
 
@@ -118,6 +131,8 @@ export const unarchiveList = async (req, res) => {
     if (!isMember) {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
+
+    if (!ensureBoardIsActive(board, res)) return
 
     list.isArchived = false
     await list.save()
@@ -145,6 +160,8 @@ export const updateList = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
 
+    if (!ensureBoardIsActive(board, res)) return
+
     list.name = name || list.name
     await list.save()
 
@@ -170,6 +187,8 @@ export const deleteList = async (req, res) => {
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can delete lists' })
     }
+
+    if (!ensureBoardIsActive(board, res)) return
 
     await list.deleteOne()
 
