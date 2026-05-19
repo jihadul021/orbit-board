@@ -65,7 +65,7 @@ export default function Groups() {
             </button>
           }
         />
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      {/* <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
           <span className="text-lg font-bold text-slate-800">OrbitBoard</span>
@@ -79,7 +79,7 @@ export default function Groups() {
             Logout
           </button>
         </div>
-      </header>
+      </header> */}
 
       <div className="max-w-4xl mx-auto px-6 py-10">
         {/* <div className="flex items-center justify-between mb-8">
