@@ -15,6 +15,10 @@ export const createGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').trim()
 })
 
+export const updateGroupSchema = z.object({
+  name: z.string().min(2, 'Group name must be at least 2 characters').trim()
+})
+
 export const inviteMemberSchema = z.object({
   email: z.string().email('Invalid email address').trim()
 })
@@ -22,6 +26,10 @@ export const inviteMemberSchema = z.object({
 export const createBoardSchema = z.object({
   name: z.string().min(2, 'Board name must be at least 2 characters').trim(),
   groupId: z.string().min(1, 'Group ID is required')
+})
+
+export const updateBoardSchema = z.object({
+  name: z.string().min(2, 'Board name must be at least 2 characters').trim()
 })
 
 export const addBoardMemberSchema = z.object({

@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
 export default function Boards() {
   const { id: groupId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuthStore()
   const [group, setGroup] = useState(null)
   const [boards, setBoards] = useState([])
+  const [closedBoards, setClosedBoards] = useState([])
   const [loading, setLoading] = useState(true)
+  const [reopeningBoardId, setReopeningBoardId] = useState('')
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+  const [showRenameGroup, setShowRenameGroup] = useState(false)
+  const [groupSettingsError, setGroupSettingsError] = useState('')
+  const [groupSettingsLoading, setGroupSettingsLoading] = useState(false)
+  const [groupNameInput, setGroupNameInput] = useState('')
 
   // Board creation
   const [showCreate, setShowCreate] = useState(false)
@@ -22,25 +30,39 @@ export default function Boards() {
   const [memberEmail, setMemberEmail] = useState('')
   const [addingMember, setAddingMember] = useState(false)
   const [memberError, setMemberError] = useState('')
+  const isClosedBoardsPage = location.pathname.endsWith('/closed')
 
   useEffect(() => {
-    fetchData()
-  }, [groupId])
+    let isMounted = true
 
-  const fetchData = async () => {
-    try {
-      const [groupRes, boardsRes] = await Promise.all([
-        axiosInstance.get(`/groups/${groupId}`),
-        axiosInstance.get(`/boards/group/${groupId}`)
-      ])
-      setGroup(groupRes.data.group)
-      setBoards(boardsRes.data.boards)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
+    const loadData = async () => {
+      try {
+        const [groupRes, boardsRes, closedBoardsRes] = await Promise.all([
+          axiosInstance.get(`/groups/${groupId}`),
+          axiosInstance.get(`/boards/group/${groupId}`),
+          axiosInstance.get(`/boards/group/${groupId}/closed`)
+        ])
+
+        if (!isMounted) return
+
+        setGroup(groupRes.data.group)
+        setBoards(boardsRes.data.boards)
+        setClosedBoards(closedBoardsRes.data.boards)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [groupId])
 
   const isOwner = group?.owner._id === user?._id
 
@@ -84,6 +106,45 @@ export default function Boards() {
     }
   }
 
+  const handleReopenBoard = async (boardId) => {
+    setReopeningBoardId(boardId)
+    try {
+      const res = await axiosInstance.patch(`/boards/${boardId}/reopen`)
+      const reopenedBoard = res.data.board
+      setClosedBoards(prev => prev.filter(board => board._id !== boardId))
+      if (!isClosedBoardsPage) {
+        setBoards(prev => [...prev, reopenedBoard])
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setReopeningBoardId('')
+    }
+  }
+
+  const handleRenameGroup = async (e) => {
+    e.preventDefault()
+    setGroupSettingsLoading(true)
+    setGroupSettingsError('')
+    try {
+      const res = await axiosInstance.patch(`/groups/${groupId}`, { name: groupNameInput })
+      setGroup(res.data.group)
+      setShowRenameGroup(false)
+      setShowSettingsMenu(false)
+    } catch (err) {
+      setGroupSettingsError(err.response?.data?.message || 'Failed to update group name')
+    } finally {
+      setGroupSettingsLoading(false)
+    }
+  }
+
+  const openRenameGroup = () => {
+    setGroupSettingsError('')
+    setGroupNameInput(group?.name || '')
+    setShowRenameGroup(true)
+    setShowSettingsMenu(false)
+  }
+
   if (loading) return (
     <div className="flex-1 flex items-center justify-center text-slate-500">Loading...</div>
   )
@@ -96,7 +157,9 @@ export default function Boards() {
         <div className="flex items-center space-x-2 text-sm">
           <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
           <span className="text-slate-300">/</span>
-          <span className="text-slate-800 font-semibold">{group?.name}</span>
+          <span className="text-slate-800 font-semibold">
+            {isClosedBoardsPage ? 'Closed Boards' : group?.name}
+          </span>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -105,6 +168,35 @@ export default function Boards() {
           >
             👥 Members ({group?.members.length || 0})
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowSettingsMenu(prev => !prev)}
+              className="text-sm border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+            >
+              Settings
+            </button>
+            {showSettingsMenu && (
+              <div className="absolute right-0 top-12 w-52 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
+                {isOwner && (
+                  <button
+                    onClick={openRenameGroup}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-gray-50 rounded-lg"
+                  >
+                    Change Group Name
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    navigate(isClosedBoardsPage ? `/groups/${groupId}` : `/groups/${groupId}/closed`)
+                    setShowSettingsMenu(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-gray-50 rounded-lg"
+                >
+                  {isClosedBoardsPage ? 'Back to Boards' : 'Closed Boards'}
+                </button>
+              </div>
+            )}
+          </div>
           {isOwner && (
             <button
               onClick={() => setShowCreate(true)}
@@ -119,28 +211,100 @@ export default function Boards() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-10">
-          {boards.length === 0 ? (
+          {!isClosedBoardsPage && boards.length === 0 ? (
             <div className="text-center py-20 text-slate-400">
               <p className="text-lg font-medium">No boards yet</p>
               {isOwner && <p className="text-sm mt-1">Create a board to get started</p>}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {boards.map((board) => (
-                <div
-                  key={board._id}
-                  onClick={() => navigate(`/boards/${board._id}`)}
-                  className="bg-white border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all"
-                >
-                  <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                    {board.name.charAt(0).toUpperCase()}
-                  </div>
-                  <h3 className="font-semibold text-slate-800">{board.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {board.members.length} member{board.members.length !== 1 ? 's' : ''}
-                  </p>
+          ) : isClosedBoardsPage ? (
+            <section>
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold text-slate-800">Closed Boards</h2>
+                <p className="text-sm text-slate-500">Boards stay here until a board admin reopens them.</p>
+              </div>
+
+              {closedBoards.length === 0 ? (
+                <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-10 text-center text-slate-400">
+                  No closed boards yet.
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {closedBoards.map((board) => {
+                    const myBoardRole = board.members.find(m => m.user._id === user?._id)?.role
+                    const isBoardAdmin = myBoardRole === 'admin'
+
+                    return (
+                      <div
+                        key={board._id}
+                        className="bg-white border border-gray-200 rounded-xl p-6"
+                      >
+                        <div
+                          onClick={() => navigate(`/boards/${board._id}`)}
+                          className="cursor-pointer"
+                        >
+                          <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg mb-4">
+                            {board.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <h3 className="font-semibold text-slate-800">{board.name}</h3>
+                            <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                              Closed
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {board.members.length} member{board.members.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+
+                        {isBoardAdmin && (
+                          <button
+                            onClick={() => handleReopenBoard(board._id)}
+                            disabled={reopeningBoardId === board._id}
+                            className="mt-4 text-sm text-emerald-700 hover:text-emerald-800 font-medium disabled:opacity-50 transition-colors"
+                          >
+                            {reopeningBoardId === board._id ? 'Reopening...' : 'Reopen Board'}
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+          ) : (
+            <div className="space-y-10">
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-800">Active Boards</h2>
+                    <p className="text-sm text-slate-500">Open boards your team can keep working in.</p>
+                  </div>
+                </div>
+
+                {boards.length === 0 ? (
+                  <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-10 text-center text-slate-400">
+                    No active boards right now.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {boards.map((board) => (
+                      <div
+                        key={board._id}
+                        onClick={() => navigate(`/boards/${board._id}`)}
+                        className="bg-white border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all"
+                      >
+                        <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg mb-4">
+                          {board.name.charAt(0).toUpperCase()}
+                        </div>
+                        <h3 className="font-semibold text-slate-800">{board.name}</h3>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {board.members.length} member{board.members.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>
@@ -291,6 +455,47 @@ export default function Boards() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {showRenameGroup && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Change Group Name</h2>
+            {groupSettingsError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+                {groupSettingsError}
+              </div>
+            )}
+            <form onSubmit={handleRenameGroup} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Group Name</label>
+                <input
+                  type="text"
+                  value={groupNameInput}
+                  onChange={(e) => setGroupNameInput(e.target.value)}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowRenameGroup(false); setGroupSettingsError('') }}
+                  className="flex-1 border border-gray-300 text-slate-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={groupSettingsLoading}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  {groupSettingsLoading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
