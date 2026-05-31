@@ -6,6 +6,7 @@ import Groups from './pages/Groups'
 import Boards from './pages/Boards'
 import Board from './pages/Board'
 import Layout from './components/Layout'
+import Profile from './pages/Profile'
 
 const ProtectedRoute = ({ children }) => {
   const user = useAuthStore((state) => state.user)
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
         <Route path="/boards/:id" element={<ProtectedRoute><Board /></ProtectedRoute>} />
         <Route path="/boards/:id/archived" element={<ProtectedRoute><Board /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   )

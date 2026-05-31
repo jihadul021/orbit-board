@@ -177,7 +177,9 @@ export default function Sidebar({ collapsed, onToggle }) {
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="text-sm text-white font-medium truncate">{user?.name}</p>
+                <Link to="/profile" className="text-sm text-white font-medium truncate hover:text-indigo-300 transition-colors block">
+                  {user?.name}
+                </Link>
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
             </div>
