@@ -105,3 +105,63 @@ export const refresh = (req, res) => {
 export const getMe = async (req, res) => {
   res.status(200).json({ user: req.user })
 }
+
+
+// @route  PATCH /api/auth/update-profile
+export const updateProfile = async (req, res) => {
+  try {
+    const { name } = req.body
+
+    if (!name || name.trim() === '') {
+      return res.status(400).json({ message: 'Name cannot be empty' })
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name: name.trim() },
+      { new: true }
+    ).select('-password')
+
+    res.status(200).json({
+      message: 'Profile updated',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePic: user.profilePic
+      }
+    })
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
+
+// @route  PATCH /api/auth/change-password
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'All fields are required' })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' })
+    }
+
+    const user = await User.findById(req.user._id)
+
+    const isMatch = await bcryptjs.compare(currentPassword, user.password)
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Current password is incorrect' })
+    }
+
+    const hashed = await bcryptjs.hash(newPassword, 10)
+    user.password = hashed
+    await user.save()
+
+    res.status(200).json({ message: 'Password changed successfully' })
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
