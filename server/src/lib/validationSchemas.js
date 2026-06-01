@@ -67,3 +67,9 @@ export const updateArticleStatusSchema = z.object({
 export const moveArticleSchema = z.object({
   listId: z.string().min(1, 'List ID is required')
 })
+
+export const addCommentSchema = z.object({
+  articleId: z.string().min(1, 'Article ID is required'),
+  body: z.string().min(1, 'Comment cannot be empty').trim(),
+  parentId: z.string().optional()
+})
