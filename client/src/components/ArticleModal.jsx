@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useEffectEvent } from 'react'
 import axiosInstance from '../api/axios'
 import ArticleEditor from './ArticleEditor'
+import CommentThread from './CommentThread'
+
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -212,6 +214,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
             onChange={setBody}
             editable={!isReadOnly}
           />
+          <CommentThread articleId={article._id} myRole={myRole} />
         </div>
 
         {/* Footer */}
