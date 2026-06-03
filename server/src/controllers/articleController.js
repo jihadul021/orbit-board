@@ -169,6 +169,8 @@ export const updateArticleStatus = async (req, res) => {
       if (['reviewed', 'published'].includes(status)) {
         originalUpdate.isLockedForReview = false
         originalUpdate.lockedBy = null
+        originalUpdate.editedTitle = article.title
+        originalUpdate.editedBody = article.body
       }
       await Article.findByIdAndUpdate(article.sourceArticle, originalUpdate)
     }

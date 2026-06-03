@@ -36,6 +36,15 @@ const articleSchema = new mongoose.Schema({
     required: true
   },
 
+  editedTitle: {
+    type: String,
+    default: null
+  },
+  editedBody: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+
   // --- Review copy fields ---
   isCopy: {
     type: Boolean,

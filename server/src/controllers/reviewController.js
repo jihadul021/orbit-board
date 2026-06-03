@@ -102,24 +102,17 @@ export const updateCopyStatus = async (req, res) => {
     await copy.save()
 
     if (copy.sourceArticle) {
-      // If reviewed or published — sync status AND unlock original
-      if (['reviewed', 'published'].includes(status)) {
-        await Article.findByIdAndUpdate(copy.sourceArticle, {
-          status,
-          isLockedForReview: false,
-          lockedBy: null
-        })
-      } else {
-        // Just sync status, keep lock
-        await Article.findByIdAndUpdate(copy.sourceArticle, { status })
-      }
-    }
+      const originalUpdate = { status }
 
-    if (!article.isCopy && status === 'published') {
-      await Article.updateOne(
-        { sourceArticle: article._id, isCopy: true },
-        { status: 'published' }
-      )
+      // Save edited snapshot onto original when reviewed or published
+      if (['reviewed', 'published'].includes(status)) {
+        originalUpdate.isLockedForReview = false
+        originalUpdate.lockedBy = null
+        originalUpdate.editedTitle = copy.title
+        originalUpdate.editedBody = copy.body
+      }
+
+      await Article.findByIdAndUpdate(copy.sourceArticle, originalUpdate)
     }
 
     res.status(200).json({ message: 'Status updated and synced to original', copy })

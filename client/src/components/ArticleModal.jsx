@@ -26,7 +26,7 @@ const StatusBadge = ({ status }) => {
 }
 
 const statusTransitions = {
-  writer: ['pending', 'completed', 'in_review'],
+  writer: ['pending', 'completed', 'published'],
   editor: ['in_review', 'reviewed', 'published'],
   admin: ['in_review', 'reviewed', 'published'],
 }
@@ -37,6 +37,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   const [status, setStatus] = useState(article.status)
   const [saveStatus, setSaveStatus] = useState('saved')
   const [error, setError] = useState('')
+  const [compareMode, setCompareMode] = useState(false)
 
   const autoSaveTimer = useRef(null)
   const latestBody = useRef(body)
@@ -45,7 +46,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   const isFirstRender = useRef(true)
   const isFirstStatusRender = useRef(true)
 
-  // Keep refs in sync
   useEffect(() => { latestBody.current = body }, [body])
   useEffect(() => { latestTitle.current = title }, [title])
   useEffect(() => { latestStatus.current = status }, [status])
@@ -78,7 +78,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
     }
   }
 
-  // Auto-save on body or title change
   useEffect(() => {
     if (isReadOnly) return
     if (isFirstRender.current) {
@@ -93,7 +92,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
     return () => clearTimeout(autoSaveTimer.current)
   }, [body, title])
 
-  // Save immediately on status change — skip first render
   useEffect(() => {
     if (isReadOnly) return
     if (isFirstStatusRender.current) {
@@ -103,7 +101,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
     backgroundSave()
   }, [status])
 
-  // manual save — saves then calls onSave to update card
   const handleSave = async () => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     setSaveStatus('saving')
@@ -132,7 +129,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       setError(err.response?.data?.message || 'Failed to save')
     }
   }
-  
+
   const handleClose = async () => {
     if (isReadOnly) {
       onClose()
@@ -165,28 +162,47 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
 
   const canDelete = !isReadOnly && (myRole === 'admin' || article.author?._id === currentUserId)
 
+  // Show compare button only for writers/admins when edited version exists
+  const hasEditedVersion = article.editedBody !== null && article.editedBody !== undefined
+  const canCompare = hasEditedVersion && ['reviewed', 'published'].includes(status)
+
   return (
     <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] mx-4 sm:mx-0 flex flex-col transition-all duration-300 ${compareMode ? 'max-w-7xl' : 'max-w-4xl'}`}>
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <span className="text-base font-semibold text-slate-600 truncate mr-4">
-            {title || 'Untitled'}
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 flex-shrink-0">
+          <span className="text-base font-semibold text-slate-600 truncate mr-0 sm:mr-4">
+            {compareMode ? 'Compare Versions' : (title || 'Untitled')}
           </span>
-          <div className="flex items-center space-x-3">
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              disabled={isReadOnly}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
-            >
-              {availableStatuses.map(s => (
-                <option key={s} value={s}>
-                  {s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                </option>
-              ))}
-            </select>
+          <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
+            {/* Compare toggle button */}
+            {canCompare && !article.isCopy && (
+              <button
+                onClick={() => setCompareMode(!compareMode)}
+                className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-lg border font-medium transition-colors ${
+                  compareMode
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'border-indigo-300 text-indigo-600 hover:bg-indigo-50'
+                }`}
+              >
+                {compareMode ? 'Exit' : 'Compare'}
+              </button>
+            )}
+            {!compareMode && (
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                disabled={isReadOnly}
+                className="text-xs sm:text-sm border border-gray-200 rounded-lg px-2 sm:px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
+              >
+                {availableStatuses.map(s => (
+                  <option key={s} value={s}>
+                    {s.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-slate-800 p-2 hover:bg-gray-100 rounded-full"
@@ -197,72 +213,120 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
-              {error}
+        <div className="flex-1 overflow-hidden">
+          {compareMode ? (
+            // Split view — stacked on mobile, side by side on desktop
+            <div className="flex flex-col md:flex-row h-full divide-y md:divide-y-0 md:divide-x divide-gray-200">
+
+              {/* Left — Original */}
+              <div className="flex-1 flex flex-col min-w-0 min-h-0">
+                <div className="px-3 sm:px-4 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
+                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Original Version
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">{article.title}</h2>
+                  <ArticleEditor
+                    content={article.body}
+                    onChange={() => {}}
+                    editable={false}
+                  />
+                </div>
+              </div>
+
+              {/* Right — Edited version */}
+              <div className="flex-1 flex flex-col min-w-0 min-h-0">
+                <div className="px-3 sm:px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex-shrink-0">
+                  <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
+                    Edited Version
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">
+                    {article.editedTitle || article.title}
+                  </h2>
+                  <ArticleEditor
+                    content={article.editedBody}
+                    onChange={() => {}}
+                    editable={false}
+                  />
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            // Normal view
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 h-full">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-lg px-4 py-3 mb-4">
+                  {error}
+                </div>
+              )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Article Title</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  readOnly={isReadOnly}
+                  placeholder="Article title..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 read-only:bg-slate-50"
+                />
+              </div>
+              <ArticleEditor
+                content={body}
+                onChange={setBody}
+                editable={!isReadOnly}
+              />
+              <CommentThread articleId={article._id} myRole={myRole} />
             </div>
           )}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Article Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              readOnly={isReadOnly}
-              placeholder="Article title..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 read-only:bg-slate-50"
-            />
-          </div>
-          <ArticleEditor
-            content={body}
-            onChange={setBody}
-            editable={!isReadOnly}
-          />
-          <CommentThread articleId={article._id} myRole={myRole} />
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <span className="text-xs text-slate-500">by {article.author?.name}</span>
-            <StatusBadge status={status} />
-            <span className={`text-xs font-medium ${
-              saveStatus === 'saved' ? 'text-emerald-600' :
-              saveStatus === 'saving' ? 'text-amber-500' :
-              'text-slate-400'
-            }`}>
-              {isReadOnly ? 'Read only' :
-               saveStatus === 'saved' ? '✓ Saved' :
-               saveStatus === 'saving' ? 'Saving...' :
-               '● Unsaved changes'}
-            </span>
-          </div>
-          <div className="flex items-center space-x-3">
-            {canDelete && (
+        {/* Footer — hidden in compare mode */}
+        {!compareMode && (
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 flex-shrink-0">
+            <div className="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm w-full sm:w-auto">
+              <span className="text-slate-500">by {article.author?.name}</span>
+              <StatusBadge status={status} />
+              <span className={`font-medium ${
+                saveStatus === 'saved' ? 'text-emerald-600' :
+                saveStatus === 'saving' ? 'text-amber-500' :
+                'text-slate-400'
+              }`}>
+                {isReadOnly ? 'Read only' :
+                 saveStatus === 'saved' ? '✓ Saved' :
+                 saveStatus === 'saving' ? 'Saving...' :
+                 '● Unsaved changes'}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto justify-end">
+              {canDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="text-xs sm:text-sm text-red-600 hover:text-red-700 px-3 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              )}
               <button
-                onClick={handleDelete}
-                className="text-sm text-red-600 hover:text-red-700 px-4 py-2 border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
+                onClick={handleClose}
+                className="text-xs sm:text-sm text-slate-600 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
               >
-                Delete
+                Close
               </button>
-            )}
-            <button
-              onClick={handleClose}
-              className="text-sm text-slate-600 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-            >
-              Close
-            </button>
-            {!isReadOnly && (
-              <button
-                onClick={handleSave}
-                className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
-              >
-                Save
-              </button>
-            )}
+              {!isReadOnly && (
+                <button
+                  onClick={handleSave}
+                  className="text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg"
+                >
+                  Save
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>
