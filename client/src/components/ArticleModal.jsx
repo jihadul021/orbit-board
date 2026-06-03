@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useEffectEvent } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axiosInstance from '../api/axios'
 import ArticleEditor from './ArticleEditor'
 import CommentThread from './CommentThread'
-
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -27,9 +26,9 @@ const StatusBadge = ({ status }) => {
 }
 
 const statusTransitions = {
-  writer: ['pending', 'completed', 'published'],
+  writer: ['pending', 'completed', 'in_review'],
   editor: ['in_review', 'reviewed', 'published'],
-  admin: [ 'in_review', 'reviewed', 'published'],
+  admin: ['in_review', 'reviewed', 'published'],
 }
 
 export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false, currentUserId }) {
@@ -51,34 +50,33 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   useEffect(() => { latestTitle.current = title }, [title])
   useEffect(() => { latestStatus.current = status }, [status])
 
-  // background save — does NOT call onSave, does NOT close modal
-  async function backgroundSave(overrides = {}) {
+  const backgroundSave = async (overrides = {}) => {
     setSaveStatus('saving')
     try {
-      const res = await axiosInstance.patch(`/articles/${article._id}`, {
+      await axiosInstance.patch(`/articles/${article._id}`, {
         title: overrides.title ?? latestTitle.current,
         body: overrides.body ?? latestBody.current,
       })
 
       const currentStatus = overrides.status ?? latestStatus.current
-      let updatedArticle = res.data.article
       if (currentStatus !== article.status) {
-        const statusRes = await axiosInstance.patch(`/articles/${article._id}/status`, {
-          status: currentStatus,
-        })
-        updatedArticle = statusRes.data.article
+        if (article.isCopy) {
+          await axiosInstance.patch(`/review/copy/${article._id}/status`, {
+            status: currentStatus,
+          })
+        } else {
+          await axiosInstance.patch(`/articles/${article._id}/status`, {
+            status: currentStatus,
+          })
+        }
       }
-      onSave(updatedArticle)
+
       setSaveStatus('saved')
     } catch (err) {
       setSaveStatus('unsaved')
       setError(err.response?.data?.message || 'Auto-save failed')
     }
   }
-
-  const runBackgroundSave = useEffectEvent((overrides = {}) => {
-    backgroundSave(overrides)
-  })
 
   // Auto-save on body or title change
   useEffect(() => {
@@ -90,22 +88,22 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
     setSaveStatus('unsaved')
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(() => {
-      runBackgroundSave()
+      backgroundSave()
     }, 2000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [body, title, isReadOnly])
+  }, [body, title])
 
-  // Save immediately on status change
+  // Save immediately on status change — skip first render
   useEffect(() => {
     if (isReadOnly) return
     if (isFirstStatusRender.current) {
       isFirstStatusRender.current = false
       return
     }
-    runBackgroundSave()
-  }, [status, isReadOnly])
+    backgroundSave()
+  }, [status])
 
-  // manual save — saves and updates the card in board
+  // manual save — saves then calls onSave to update card
   const handleSave = async () => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     setSaveStatus('saving')
@@ -116,9 +114,15 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       })
 
       if (latestStatus.current !== article.status) {
-        await axiosInstance.patch(`/articles/${article._id}/status`, {
-          status: latestStatus.current,
-        })
+        if (article.isCopy) {
+          await axiosInstance.patch(`/review/copy/${article._id}/status`, {
+            status: latestStatus.current
+          })
+        } else {
+          await axiosInstance.patch(`/articles/${article._id}/status`, {
+            status: latestStatus.current
+          })
+        }
       }
 
       setSaveStatus('saved')
@@ -128,14 +132,12 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       setError(err.response?.data?.message || 'Failed to save')
     }
   }
-
-  // close — background save first, then close
-    const handleClose = async () => {
+  
+  const handleClose = async () => {
     if (isReadOnly) {
       onClose()
       return
     }
-
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
     await backgroundSave({
       title: latestTitle.current,
@@ -157,7 +159,10 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   }
 
   const roleStatuses = statusTransitions[myRole] || []
-  const availableStatuses = roleStatuses.includes(status) ? roleStatuses : [status, ...roleStatuses]
+  const availableStatuses = roleStatuses.includes(status)
+    ? roleStatuses
+    : [status, ...roleStatuses]
+
   const canDelete = !isReadOnly && (myRole === 'admin' || article.author?._id === currentUserId)
 
   return (
@@ -174,7 +179,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               disabled={isReadOnly}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none disabled:opacity-50"
             >
               {availableStatuses.map(s => (
                 <option key={s} value={s}>

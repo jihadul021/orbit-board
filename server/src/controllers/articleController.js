@@ -61,6 +61,8 @@ export const getArticlesByList = async (req, res) => {
 
     const articles = await Article.find({ list: req.params.listId })
       .populate('author', 'name email profilePic')
+      .populate('pickedBy', 'name email profilePic')
+      .populate('lockedBy', 'name email profilePic')
 
     res.status(200).json({ articles })
 
@@ -76,6 +78,8 @@ export const getArticleById = async (req, res) => {
       .populate('author', 'name email profilePic')
       .populate('list', 'name')
       .populate('board', 'name')
+      .populate('pickedBy', 'name email profilePic')
+      .populate('lockedBy', 'name email profilePic')
 
     if (!article) {
       return res.status(404).json({ message: 'Article not found' })
@@ -148,13 +152,8 @@ export const updateArticleStatus = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
 
-    if (!ensureBoardIsActive(board, res)) return
-
-    // Writers can move articles to completed and published.
-    // Editors and admins can move an article through the full workflow.
     const writerAllowed = ['pending', 'completed', 'published']
-    const editorAllowed = ['pending', 'completed', 'in_review', 'reviewed', 'published']
-
+    const editorAllowed = ['in_review', 'reviewed', 'published']
     const allowed = requester.role === 'writer' ? writerAllowed : editorAllowed
 
     if (!allowed.includes(status)) {
@@ -163,6 +162,24 @@ export const updateArticleStatus = async (req, res) => {
 
     article.status = status
     await article.save()
+
+    // If this is a copy — sync status to original and unlock if reviewed/published
+    if (article.isCopy && article.sourceArticle) {
+      const originalUpdate = { status }
+      if (['reviewed', 'published'].includes(status)) {
+        originalUpdate.isLockedForReview = false
+        originalUpdate.lockedBy = null
+      }
+      await Article.findByIdAndUpdate(article.sourceArticle, originalUpdate)
+    }
+
+    // If this is an original and status is published — sync to its copy if one exists
+    if (!article.isCopy && status === 'published') {
+      await Article.updateOne(
+        { sourceArticle: article._id, isCopy: true },
+        { status: 'published' }
+      )
+    }
 
     res.status(200).json({ message: 'Status updated', article })
 

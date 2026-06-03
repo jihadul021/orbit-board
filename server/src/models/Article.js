@@ -34,7 +34,39 @@ const articleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Group',
     required: true
+  },
+
+  // --- Review copy fields ---
+  isCopy: {
+    type: Boolean,
+    default: false
+  },
+  sourceArticle: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Article',
+    default: null
+  },
+  sourceBoardName: {
+    type: String,
+    default: null
+  },
+  pickedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+
+  // --- Lock fields (set on original when picked) ---
+  isLockedForReview: {
+    type: Boolean,
+    default: false
+  },
+  lockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
+
 }, { timestamps: true })
 
 const Article = mongoose.model('Article', articleSchema)
