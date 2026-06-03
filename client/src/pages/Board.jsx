@@ -3,8 +3,8 @@ import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 import ArticleModal from '../components/ArticleModal'
-// import PageHeader from '../components/PageHeader'
 import BoardMembersModal from '../components/BoardMembersModal'
+import PickForReviewModal from '../components/PickForReviewModal'
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -56,49 +56,42 @@ export default function Board() {
   const [listActionLoading, setListActionLoading] = useState('')
   const [listActionError, setListActionError] = useState('')
   const isArchivedView = location.pathname.endsWith('/archived')
+  const [showPickModal, setShowPickModal] = useState(null) 
+
+  const fetchBoard = async () => {
+    try {
+      const [boardRes, listsRes] = await Promise.all([
+        axiosInstance.get(`/boards/${boardId}`),
+        axiosInstance.get(isArchivedView ? `/lists/board/${boardId}/archived` : `/lists/board/${boardId}`)
+      ])
+      const fetchedBoard = boardRes.data.board
+      const fetchedLists = listsRes.data.lists
+
+      const articleMap = {}
+      await Promise.all(
+        fetchedLists.map(async (list) => {
+          const res = await axiosInstance.get(`/articles/list/${list._id}`)
+          articleMap[list._id] = res.data.articles
+        })
+      )
+
+      setBoard(fetchedBoard)
+      setLists(fetchedLists)
+      setArticles(articleMap)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    let isMounted = true
-
-    const loadBoard = async () => {
-      try {
-        const [boardRes, listsRes] = await Promise.all([
-          axiosInstance.get(`/boards/${boardId}`),
-          axiosInstance.get(isArchivedView ? `/lists/board/${boardId}/archived` : `/lists/board/${boardId}`)
-        ])
-        const fetchedBoard = boardRes.data.board
-        const fetchedLists = listsRes.data.lists
-
-        const articleMap = {}
-        await Promise.all(
-          fetchedLists.map(async (list) => {
-            const res = await axiosInstance.get(`/articles/list/${list._id}`)
-            articleMap[list._id] = res.data.articles
-          })
-        )
-
-        if (!isMounted) return
-
-        setBoard(fetchedBoard)
-        setLists(fetchedLists)
-        setArticles(articleMap)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadBoard()
-
-    return () => {
-      isMounted = false
-    }
+    fetchBoard()
   }, [boardId, isArchivedView])
   const myRole = board?.members.find(m => m.user._id === user?._id)?.role
   const isBoardAdmin = myRole === 'admin'
+  const isAdmin = myRole === 'admin'
+  const isEditor = myRole === 'editor'
   const isClosed = board?.status === 'closed'
 
   const handleAddList = async (e) => {
@@ -250,6 +243,22 @@ export default function Board() {
       setListActionLoading('')
     }
   }
+  const handleReturnArticle = async (copyId) => {
+    if (!confirm('Delete this copy? The original article will be unlocked and keep its current status.')) return
+    try {
+      await axiosInstance.delete(`/review/copy/${copyId}`)
+      setArticles(prev => {
+        const updated = {}
+        for (const listId in prev) {
+          updated[listId] = prev[listId].filter(a => a._id !== copyId)
+        }
+        return updated
+      })
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
 
   const handleDeleteList = async (list) => {
     if (!confirm('Delete this list permanently? This cannot be undone.')) return
@@ -277,26 +286,6 @@ export default function Board() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
 
-  {/* Header
-  <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-    <div className="flex items-center space-x-2 text-sm">
-      <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
-      <span className="text-slate-300">/</span>
-      <Link to={`/groups/${board?.group}`} className="text-slate-400 hover:text-indigo-600 transition-colors">
-        {groupName}
-      </Link>
-      <span className="text-slate-300">/</span>
-      <span className="text-slate-800 font-semibold">{board?.name}</span>
-    </div>
-    <div className="flex items-center space-x-3">
-      <button
-        onClick={() => setShowMembers(true)}
-        className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-      >
-        👥 Members
-      </button>
-    </div>
-  </div> */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
@@ -457,12 +446,60 @@ export default function Board() {
                 {(articles[list._id] || []).map((article) => (
                   <div
                     key={article._id}
-                    onClick={() => setSelectedArticle(article)}
-                    className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all"
+                    className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md"
                   >
-                    <StatusBadge status={article.status} />
-                    <h4 className="font-medium text-slate-800 text-sm mt-2">{article.title}</h4>
-                    <p className="text-xs text-slate-400 mt-1">{article.author?.name}</p>
+                    {/* Clickable area — opens modal */}
+                    <div
+                      onClick={() => setSelectedArticle(article)}
+                      className="cursor-pointer"
+                    >
+                      <StatusBadge status={article.status} />
+
+                      {/* Copy badge */}
+                      {article.isCopy && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                          Copy
+                        </span>
+                      )}
+
+                      <h4 className="font-medium text-slate-800 text-sm mt-2">{article.title}</h4>
+                      <p className="text-xs text-slate-400 mt-1">
+                          {article.isCopy ? article.sourceBoardName : board?.name}
+                      </p>
+
+                      {article.isCopy && article.pickedBy && (
+                        <p className="text-xs text-indigo-500 mt-0.5">
+                          Editor: {article.pickedBy?.name}
+                        </p>
+                      )}
+
+                      {/* Locked badge — shown on original */}
+                      {article.isLockedForReview && !article.isCopy && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          🔒 In review by {article.lockedBy?.name}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Send to Review button — editor/admin, not a copy, not locked */}
+                    {(isEditor || isAdmin) && !article.isCopy && !article.isLockedForReview && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowPickModal(article) }}
+                        className="mt-2 w-full text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:bg-indigo-50 py-1 rounded-lg transition-colors"
+                      >
+                        Send to Review
+                      </button>
+                    )}
+
+                    {/* Return article button — editor/admin on copies */}
+                    {(isEditor || isAdmin) && article.isCopy && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleReturnArticle(article._id) }}
+                        className="mt-2 w-full text-xs text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 py-1 rounded-lg transition-colors"
+                      >
+                        Delete Copy
+                      </button>
+                    )}
                   </div>
                 ))}
 
@@ -548,6 +585,10 @@ export default function Board() {
                   [updated.list]: (prev[updated.list] || []).map(a => a._id === updated._id ? updated : a)
                 }))
               }
+            }}
+            onClose={() => {
+              setSelectedArticle(null)
+              fetchBoard()
             }}
           />
       )}
@@ -639,6 +680,30 @@ export default function Board() {
             </form>
           </div>
         </div>
+      )}
+      {/* Pick for Review Modal */}
+      {showPickModal && (
+        <PickForReviewModal
+          article={showPickModal}
+          groupId={board?.group}
+          boardId={boardId}
+          onClose={() => setShowPickModal(null)}
+          onPicked={(copy) => {
+            // Mark original as locked in local state
+            setArticles(prev => {
+              const updated = {}
+              for (const listId in prev) {
+                updated[listId] = prev[listId].map(a =>
+                  a._id === showPickModal._id
+                    ? { ...a, isLockedForReview: true, lockedBy: { name: 'You' }, status: 'in_review' }
+                    : a
+                )
+              }
+              return updated
+            })
+            setShowPickModal(null)
+          }}
+        />
       )}
     </div>
   )

@@ -11,6 +11,7 @@ import boardRoutes from './routes/boardRoutes.js'
 import listRoutes from './routes/listRoutes.js'
 import articleRoutes from './routes/articleRoutes.js'
 import commentRoutes from './routes/commentRoutes.js'
+import reviewRoutes from './routes/reviewRoutes.js'
 import { errorHandler } from './middleware/errorHandler.js'
 
 
@@ -34,7 +35,7 @@ app.use('/api/boards', boardRoutes)
 app.use('/api/lists', listRoutes)
 app.use('/api/articles', articleRoutes)
 app.use('/api/comments', commentRoutes)
-
+app.use('/api/review', reviewRoutes)
 
 app.use(errorHandler)
 
