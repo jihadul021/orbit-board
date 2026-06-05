@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axiosInstance from '../api/axios'
 import ArticleEditor from './ArticleEditor'
 import CommentThread from './CommentThread'
+import ActivityLog from './ActivityLog'
 
 const StatusBadge = ({ status }) => {
   const styles = {
@@ -27,17 +28,20 @@ const StatusBadge = ({ status }) => {
 
 const statusTransitions = {
   writer: ['pending', 'completed', 'published'],
-  editor: ['in_review', 'reviewed', 'published'],
+  editor: ['in_review',  'reviewed', 'published'],
   admin: ['in_review', 'reviewed', 'published'],
 }
 
 export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false, currentUserId }) {
+  console.log('ArticleModal article:', article)
+
   const [title, setTitle] = useState(article.title)
   const [body, setBody] = useState(article.body || '')
   const [status, setStatus] = useState(article.status)
   const [saveStatus, setSaveStatus] = useState('saved')
   const [error, setError] = useState('')
   const [compareMode, setCompareMode] = useState(false)
+  const [showActivity, setShowActivity] = useState(false)
 
   const autoSaveTimer = useRef(null)
   const latestBody = useRef(body)
@@ -213,7 +217,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden flex flex-col">
           {compareMode ? (
             // Split view — stacked on mobile, side by side on desktop
             <div className="flex flex-col md:flex-row h-full divide-y md:divide-y-0 md:divide-x divide-gray-200">
@@ -257,7 +261,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
             </div>
           ) : (
             // Normal view
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 h-full">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm rounded-lg px-4 py-3 mb-4">
                   {error}
@@ -280,6 +284,27 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
                 editable={!isReadOnly}
               />
               <CommentThread articleId={article._id} myRole={myRole} />
+
+              {/* Activity Log — editors and admins only, toggle with checkbox */}
+              {(myRole === 'editor' || myRole === 'admin') && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <label className="flex items-center space-x-2 mb-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showActivity}
+                      onChange={(e) => setShowActivity(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-slate-700">Activity Log</span>
+                  </label>
+
+                  {showActivity && (
+                    <div className="bg-slate-50 rounded-lg p-4 border border-gray-200">
+                      <ActivityLog articleId={article._id} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

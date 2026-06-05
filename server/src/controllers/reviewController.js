@@ -1,7 +1,7 @@
 import Article from '../models/Article.js'
 import Board from '../models/Board.js'
 import List from '../models/List.js'
-
+import { logActivity } from '../lib/logActivity.js'
 // @route  POST /api/review/pick
 // Editor picks an article — creates a copy in their editor board
 export const pickArticle = async (req, res) => {
@@ -65,7 +65,18 @@ export const pickArticle = async (req, res) => {
     original.lockedBy = req.user._id
     original.status = 'in_review'
     await original.save()
-
+    
+    // // Log activity on original article
+    // await logActivity(original._id, req.user._id, 'selected_for_review', {
+    //   editorName: req.user.name
+    // })
+    
+    // Log activity on the copy
+    await logActivity(copy._id, req.user._id, 'article_copied', {
+      targetBoardName: targetBoard.name,
+      sourceBoardName: original.board.name
+    })
+   
     await copy.populate('author', 'name email profilePic')
     await copy.populate('pickedBy', 'name email profilePic')
 
@@ -98,13 +109,13 @@ export const updateCopyStatus = async (req, res) => {
       return res.status(403).json({ message: 'Only editors and admins can update review status' })
     }
 
+    const oldStatus = copy.status
     copy.status = status
     await copy.save()
 
     if (copy.sourceArticle) {
       const originalUpdate = { status }
 
-      // Save edited snapshot onto original when reviewed or published
       if (['reviewed', 'published'].includes(status)) {
         originalUpdate.isLockedForReview = false
         originalUpdate.lockedBy = null
@@ -113,6 +124,14 @@ export const updateCopyStatus = async (req, res) => {
       }
 
       await Article.findByIdAndUpdate(copy.sourceArticle, originalUpdate)
+
+      // Log status change on original article only, not on copy
+      if (oldStatus !== status) {
+        await logActivity(copy.sourceArticle, req.user._id, 'status_changed', {
+          from: oldStatus,
+          to: status
+        })
+      }
     }
 
     res.status(200).json({ message: 'Status updated and synced to original', copy })
@@ -121,7 +140,6 @@ export const updateCopyStatus = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message })
   }
 }
-
 // @route  DELETE /api/review/copy/:id
 // Editor returns article — deletes copy and unlocks original
 export const returnArticle = async (req, res) => {
@@ -142,6 +160,11 @@ export const returnArticle = async (req, res) => {
       await Article.findByIdAndUpdate(copy.sourceArticle, {
         isLockedForReview: false,
         lockedBy: null
+      })
+      
+      // Log activity on original article that copy was deleted
+      await logActivity(copy.sourceArticle, req.user._id, 'copy_deleted', {
+        editorName: req.user.name
       })
     }
 
