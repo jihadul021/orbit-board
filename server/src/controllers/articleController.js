@@ -1,6 +1,7 @@
 import Article from '../models/Article.js'
 import List from '../models/List.js'
 import Board from '../models/Board.js'
+import { logActivity } from '../lib/logActivity.js'
 
 const ensureBoardIsActive = (board, res) => {
   if (board.status === 'closed') {
@@ -36,7 +37,9 @@ export const createArticle = async (req, res) => {
       list: listId,
       board: list.board,
       group: list.group
-    })
+    }) 
+    // activity log
+    await logActivity(article._id, req.user._id, 'article_created')
 
     res.status(201).json({ message: 'Article created', article })
 
@@ -128,6 +131,8 @@ export const updateArticle = async (req, res) => {
     article.title = title || article.title
     article.body = body || article.body
     await article.save()
+    // activity log
+    // await logActivity(article._id, req.user._id, 'article_edited')
 
     res.status(200).json({ message: 'Article updated', article })
 
@@ -159,10 +164,17 @@ export const updateArticleStatus = async (req, res) => {
     if (!allowed.includes(status)) {
       return res.status(403).json({ message: 'Not authorized to set this status' })
     }
-
+    
+    const oldStatus = article.status
     article.status = status
     await article.save()
-
+    // activity log
+    if (oldStatus !== status) {
+      await logActivity(article._id, req.user._id, 'status_changed', {
+        from: oldStatus,
+        to: status
+      })
+    }
     // If this is a copy — sync status to original and unlock if reviewed/published
     if (article.isCopy && article.sourceArticle) {
       const originalUpdate = { status }
@@ -215,7 +227,6 @@ export const moveArticle = async (req, res) => {
 
     article.list = listId
     await article.save()
-
     res.status(200).json({ message: 'Article moved', article })
 
   } catch (err) {

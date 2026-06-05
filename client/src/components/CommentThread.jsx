@@ -296,8 +296,11 @@ export default function CommentThread({ articleId, myRole }) {
     try {
       const res = await axiosInstance.get(`/comments/${articleId}`)
       setComments(res.data.comments)
+      setError('')
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch comments:', err)
+      setError(err.response?.data?.message || 'Failed to load comments')
+      setComments([])
     } finally {
       setLoading(false)
     }
