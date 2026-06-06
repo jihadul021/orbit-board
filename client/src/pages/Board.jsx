@@ -301,12 +301,12 @@ export default function Board() {
               Closed
             </span>
           )}
-          <button
-            onClick={() => setShowMembers(true)}
-            className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
-          >
-            👥 Members
-          </button>
+            <button
+              onClick={() => setShowMembers(true)}
+              className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+            >
+              👥 Members {isAdmin && `(${board?.members?.length || 0})`}
+            </button>
           <div className="relative">
             <button
               onClick={() => {

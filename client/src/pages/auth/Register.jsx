@@ -18,10 +18,10 @@ export default function Register() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    try {
+    try { 
       const res = await axiosInstance.post('/auth/register', form)
       setAuth(res.data.user, res.data.accessToken)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     } finally {

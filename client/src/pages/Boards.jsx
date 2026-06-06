@@ -155,7 +155,7 @@ export default function Boards() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center space-x-2 text-sm">
-          <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
+        <Link to="/dashboard" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
           <span className="text-slate-300">/</span>
           <span className="text-slate-800 font-semibold">
             {isClosedBoardsPage ? 'Closed Boards' : group?.name}
@@ -166,7 +166,7 @@ export default function Boards() {
             onClick={() => setShowMembers(true)}
             className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
           >
-            👥 Members ({group?.members.length || 0})
+            👥 Members {isOwner && `(${group?.members.length || 0})`}
           </button>
           {isOwner && (
             <div className="relative">
@@ -251,9 +251,11 @@ export default function Boards() {
                               Closed
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {board.members.length} member{board.members.length !== 1 ? 's' : ''}
-                          </p>
+                            {isOwner && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                {board.members.length} member{board.members.length !== 1 ? 's' : ''}
+                              </p>
+                            )}
                         </div>
 
                         {isBoardAdmin && (

@@ -21,7 +21,7 @@ export default function Login() {
     try {
       const res = await axiosInstance.post('/auth/login', form)
       setAuth(res.data.user, res.data.accessToken)
-      navigate('/')
+      navigate('/dashboard')
     } catch (err) {
       setError(err.response?.data?.message || 'Something went wrong')
     } finally {

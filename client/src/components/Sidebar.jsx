@@ -66,13 +66,13 @@ export default function Sidebar({ collapsed, onToggle }) {
       {/* Logo + Toggle */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800">
         {!collapsed && (
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/dashboard" className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">O</div>
             <span className="text-white font-bold text-lg">OrbitBoard</span>
           </Link>
         )}
         {collapsed && (
-          <Link to="/" className="mx-auto">
+          <Link to="/dashboard" className="mx-auto">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
           </Link>
         )}
@@ -90,7 +90,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         {/* Groups Page */}
         {isGroupsPage && (
           <Link
-            to="/"
+            to="/dashboard"
             className="flex items-center px-3 py-2.5 rounded-lg bg-indigo-600 text-white"
           >
             <span className="text-lg">🏠</span>
@@ -100,10 +100,10 @@ export default function Sidebar({ collapsed, onToggle }) {
 
         {/* Boards Page */}
         {isBoardsPage && (
-          <Link
-            to="/"
-            className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
-          >
+            <Link
+              to="/dashboard"
+              className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
+            >
             <span className="text-lg">←</span>
             {!collapsed && <span className="ml-3 text-sm">All Groups</span>}
           </Link>
@@ -170,7 +170,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
       {/* User Info + Logout */}
       <div className="border-t border-slate-800 p-3">
-        {!collapsed ? (
+        {!collapsed ? ( 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 min-w-0">
               <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
