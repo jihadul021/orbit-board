@@ -7,6 +7,7 @@ import Boards from './pages/Boards'
 import Board from './pages/Board'
 import Layout from './components/Layout'
 import Profile from './pages/Profile'
+import Landing from './pages/Landing'
 
 const ProtectedRoute = ({ children }) => {
   const user = useAuthStore((state) => state.user)
@@ -14,12 +15,21 @@ const ProtectedRoute = ({ children }) => {
   return <Layout>{children}</Layout>
 }
 
+const GuestRoute = ({ children }) => {
+  const user = useAuthStore((state) => state.user)
+  if (user) return <Navigate to="/dashboard" replace />
+  return children
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Landing />} />
+        <Route path="/dashboard" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+
+        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
         <Route path="/" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
         <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
         <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />

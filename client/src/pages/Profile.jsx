@@ -4,7 +4,7 @@ import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
 export default function Profile() {
-  const { user, setAuth } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
 
   const [name, setName] = useState(user?.name || '')
   const [nameSuccess, setNameSuccess] = useState('')
@@ -25,7 +25,7 @@ export default function Profile() {
     setNameSuccess('')
     try {
       const res = await axiosInstance.patch('/auth/update-profile', { name })
-      setAuth(res.data.user, localStorage.getItem('accessToken'))
+      updateUser(res.data.user)
       setNameSuccess('Name updated successfully')
     } catch (err) {
       setNameError(err.response?.data?.message || 'Failed to update name')
@@ -63,7 +63,7 @@ export default function Profile() {
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center space-x-2 text-sm flex-shrink-0">
-        <Link to="/" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
+        <Link to="/dashboard" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
         <span className="text-slate-300">/</span>
         <span className="text-slate-800 font-semibold">Profile</span>
       </div>

@@ -21,9 +21,10 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
     setAdding(true)
     setError('')
     try {
-      const res = await axiosInstance.post(`/boards/${board._id}/members`, { email, role })
-      setMembers(res.data.board.members)
-      onUpdate(res.data.board)
+      await axiosInstance.post(`/boards/${board._id}/members`, { email, role })
+      const boardRes = await axiosInstance.get(`/boards/${board._id}`)
+      setMembers(boardRes.data.board.members)
+      onUpdate(boardRes.data.board)
       setEmail('')
       setRole('writer')
     } catch (err) {
@@ -36,8 +37,9 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
   const handleRoleChange = async (userId, newRole) => {
     try {
       const res = await axiosInstance.patch(`/boards/${board._id}/members/${userId}/role`, { role: newRole })
-      setMembers(res.data.board.members)
-      onUpdate(res.data.board)
+      const boardRes = await axiosInstance.get(`/boards/${board._id}`)
+      setMembers(boardRes.data.board.members)
+      onUpdate(boardRes.data.board)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update role')
     }
@@ -47,8 +49,9 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
     if (!confirm('Remove this member from the board?')) return
     try {
       const res = await axiosInstance.delete(`/boards/${board._id}/members/${userId}`)
-      setMembers(res.data.board.members)
-      onUpdate(res.data.board)
+      const boardRes = await axiosInstance.get(`/boards/${board._id}`)
+      setMembers(boardRes.data.board.members)
+      onUpdate(boardRes.data.board)
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to remove member')
     }
