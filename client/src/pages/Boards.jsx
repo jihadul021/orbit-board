@@ -3,6 +3,36 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
+const BackIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+)
+
+const ArrowRightIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
+  </svg>
+)
+
+const UsersIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+
+const MoreIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
+  </svg>
+)
+
 export default function Boards() {
   const { id: groupId } = useParams()
   const navigate = useNavigate()
@@ -31,6 +61,7 @@ export default function Boards() {
   const [addingMember, setAddingMember] = useState(false)
   const [memberError, setMemberError] = useState('')
   const isClosedBoardsPage = location.pathname.endsWith('/closed')
+  const allGroupBoards = [...boards, ...closedBoards]
 
   useEffect(() => {
     let isMounted = true
@@ -65,6 +96,24 @@ export default function Boards() {
   }, [groupId])
 
   const isOwner = group?.owner._id === user?._id
+  const getGroupMemberLabel = (userId) => {
+    if (group?.owner._id === userId) return 'Owner'
+
+    const boardRoles = allGroupBoards
+      .flatMap(board => board.members)
+      .filter(member => member.user._id === userId)
+      .map(member => member.role)
+
+    if (boardRoles.includes('admin')) return 'Admin'
+    if (boardRoles.includes('editor')) return 'Editor'
+    if (boardRoles.includes('writer')) return 'Writer'
+    return 'No board'
+  }
+  const canRemoveFromGroup = (member) => {
+    if (!isOwner || member.user._id === user?._id || member.user._id === group?.owner._id) return false
+    const label = getGroupMemberLabel(member.user._id)
+    return label === 'Admin' || label === 'No board'
+  }
 
   const handleCreateBoard = async (e) => {
     e.preventDefault()
@@ -86,8 +135,14 @@ export default function Boards() {
     setAddingMember(true)
     setMemberError('')
     try {
-      const res = await axiosInstance.post(`/groups/${groupId}/members`, { email: memberEmail })
+      const res = await axiosInstance.post(`/groups/${groupId}/invite`, { email: memberEmail })
       setGroup(res.data.group)
+      const [boardsRes, closedBoardsRes] = await Promise.all([
+        axiosInstance.get(`/boards/group/${groupId}`),
+        axiosInstance.get(`/boards/group/${groupId}/closed`)
+      ])
+      setBoards(boardsRes.data.boards)
+      setClosedBoards(closedBoardsRes.data.boards)
       setMemberEmail('')
     } catch (err) {
       setMemberError(err.response?.data?.message || 'Failed to add member')
@@ -97,10 +152,18 @@ export default function Boards() {
   }
 
   const handleRemoveMember = async (userId) => {
-    if (!confirm('Remove this member from the group?')) return
+    if (!confirm('Remove this member from the group and every board in this group?')) return
     try {
-      const res = await axiosInstance.delete(`/groups/${groupId}/members/${userId}`)
+      const res = await axiosInstance.delete(`/groups/${groupId}/remove/${userId}`)
       setGroup(res.data.group)
+      setBoards(prev => prev.map(board => ({
+        ...board,
+        members: board.members.filter(member => member.user._id !== userId)
+      })))
+      setClosedBoards(prev => prev.map(board => ({
+        ...board,
+        members: board.members.filter(member => member.user._id !== userId)
+      })))
     } catch (err) {
       setMemberError(err.response?.data?.message || 'Failed to remove member')
     }
@@ -153,28 +216,47 @@ export default function Boards() {
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-2 text-sm">
-        <Link to="/dashboard" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
-          <span className="text-slate-300">/</span>
-          <span className="text-slate-800 font-semibold">
-            {isClosedBoardsPage ? 'Closed Boards' : group?.name}
-          </span>
+      <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between gap-4 flex-shrink-0">
+        <div className="min-w-0">
+          <Link
+            to="/dashboard"
+            className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-indigo-600"
+          >
+            <BackIcon className="w-4 h-4" />
+            Groups
+          </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-700 ring-1 ring-indigo-100">
+              {(group?.name || 'G').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold text-slate-900">
+                {isClosedBoardsPage ? 'Closed Boards' : group?.name}
+              </h1>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {isClosedBoardsPage
+                  ? 'Review inactive boards and reopen them when work resumes.'
+                  : `${boards.length} active board${boards.length === 1 ? '' : 's'} across ${group?.members.length || 0} member${group?.members.length === 1 ? '' : 's'}.`}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-shrink-0 items-center space-x-3">
           <button
             onClick={() => setShowMembers(true)}
-            className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+            className="inline-flex items-center gap-2 text-sm border border-gray-200 px-4 py-2.5 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
           >
-            👥 Members {isOwner && `(${group?.members.length || 0})`}
+            <UsersIcon />
+            Members {isOwner && `(${group?.members.length || 0})`}
           </button>
           {isOwner && (
             <div className="relative">
               <button
                 onClick={() => setShowSettingsMenu(prev => !prev)}
-                className="text-sm border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+                aria-label="Group options"
               >
-                Settings
+                <MoreIcon />
               </button>
               {showSettingsMenu && (
                 <div className="absolute right-0 top-12 w-52 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
@@ -200,7 +282,7 @@ export default function Boards() {
           {isOwner && (
             <button
               onClick={() => setShowCreate(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-indigo-600/20"
             >
               + New Board
             </button>
@@ -210,25 +292,50 @@ export default function Boards() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-10">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Active</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{boards.length}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Closed</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{closedBoards.length}</p>
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Members</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{group?.members.length || 0}</p>
+            </div>
+          </div>
+
           {!isClosedBoardsPage && boards.length === 0 ? (
-            <div className="text-center py-20 text-slate-400">
-              <p className="text-lg font-medium">No boards yet</p>
-              {isOwner && <p className="text-sm mt-1">Create a board to get started</p>}
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
+              <p className="text-lg font-semibold text-slate-800">No boards yet</p>
+              {isOwner && <p className="text-sm mt-1 text-slate-500">Create a board to start organizing work for this group.</p>}
             </div>
           ) : isClosedBoardsPage ? (
             <section>
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-slate-800">Closed Boards</h2>
-                <p className="text-sm text-slate-500">Boards stay here until a board admin reopens them.</p>
+              <div className="mb-4 flex items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-900">Closed Boards</h2>
+                  <p className="text-sm text-slate-500">Boards stay here until a board admin reopens them.</p>
+                </div>
+                <button
+                  onClick={() => navigate(`/groups/${groupId}`)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-gray-50"
+                >
+                  <BackIcon />
+                  Active boards
+                </button>
               </div>
 
               {closedBoards.length === 0 ? (
-                <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-10 text-center text-slate-400">
-                  No closed boards yet.
+                <div className="bg-white border border-dashed border-gray-300 rounded-2xl px-6 py-12 text-center">
+                  <p className="font-medium text-slate-700">No closed boards yet</p>
+                  <p className="mt-1 text-sm text-slate-500">Closed boards will appear here for future reference.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {closedBoards.map((board) => {
                     const myBoardRole = board.members.find(m => m.user._id === user?._id)?.role
                     const isBoardAdmin = myBoardRole === 'admin'
@@ -236,21 +343,21 @@ export default function Boards() {
                     return (
                       <div
                         key={board._id}
-                        className="bg-white border border-gray-200 rounded-xl p-6"
+                        className="group bg-white border border-gray-200 rounded-xl p-5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
                       >
                         <div
                           onClick={() => navigate(`/boards/${board._id}`)}
                           className="cursor-pointer"
                         >
-                          <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                            {board.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <h3 className="font-semibold text-slate-800">{board.name}</h3>
+                          <div className="mb-4 flex items-start justify-between gap-3">
+                            <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg ring-1 ring-slate-200">
+                              {board.name.charAt(0).toUpperCase()}
+                            </div>
                             <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
                               Closed
                             </span>
                           </div>
+                          <h3 className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{board.name}</h3>
                             {isOwner && (
                               <p className="text-xs text-slate-500 mt-1">
                                 {board.members.length} member{board.members.length !== 1 ? 's' : ''}
@@ -262,7 +369,7 @@ export default function Boards() {
                           <button
                             onClick={() => handleReopenBoard(board._id)}
                             disabled={reopeningBoardId === board._id}
-                            className="mt-4 text-sm text-emerald-700 hover:text-emerald-800 font-medium disabled:opacity-50 transition-colors"
+                            className="mt-4 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
                           >
                             {reopeningBoardId === board._id ? 'Reopening...' : 'Reopen Board'}
                           </button>
@@ -276,32 +383,50 @@ export default function Boards() {
           ) : (
             <div className="space-y-10">
               <section>
-                {/* <div className="flex items-center justify-between mb-4"> */}
-                  {/* <div>
-                    <h2 className="text-lg font-semibold text-slate-800">Active Boards</h2>
+                <div className="mb-4 flex items-end justify-between gap-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900">Active Boards</h2>
                     <p className="text-sm text-slate-500">Open boards your team can keep working in.</p>
                   </div>
-                </div> */}
+                  {closedBoards.length > 0 && (
+                    <button
+                      onClick={() => navigate(`/groups/${groupId}/closed`)}
+                      className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-gray-50"
+                    >
+                      View closed
+                    </button>
+                  )}
+                </div>
 
                 {boards.length === 0 ? (
-                  <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-10 text-center text-slate-400">
-                    No active boards right now.
+                  <div className="bg-white border border-dashed border-gray-300 rounded-2xl px-6 py-12 text-center">
+                    <p className="font-medium text-slate-700">No active boards right now</p>
+                    <p className="mt-1 text-sm text-slate-500">Create or reopen a board to continue.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {boards.map((board) => (
                       <div
                         key={board._id}
                         onClick={() => navigate(`/boards/${board._id}`)}
-                        className="bg-white border border-gray-200 rounded-xl p-6 cursor-pointer hover:shadow-md hover:border-indigo-300 transition-all"
+                        className="group bg-white border border-gray-200 rounded-xl p-5 cursor-pointer shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
                       >
-                        <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                          {board.name.charAt(0).toUpperCase()}
+                        <div className="mb-4 flex items-start justify-between gap-3">
+                          <div className="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg ring-1 ring-indigo-100">
+                            {board.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                            Active
+                          </span>
                         </div>
-                        <h3 className="font-semibold text-slate-800">{board.name}</h3>
+                        <h3 className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{board.name}</h3>
                         <p className="text-xs text-slate-500 mt-1">
                           {board.members.length} member{board.members.length !== 1 ? 's' : ''}
                         </p>
+                        <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3 text-xs font-medium text-slate-400">
+                          <span>Open board</span>
+                          <ArrowRightIcon className="w-4 h-4 text-indigo-500 transition-transform group-hover:translate-x-0.5" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -382,16 +507,17 @@ export default function Boards() {
                 </div>
               )}
 
-              {/* Add Member — owner only */}
+              {/* Add Admin — owner only */}
               {isOwner && (
                 <div>
-                  <h3 className="text-sm font-semibold text-slate-700 mb-3">Add Member</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 mb-1">Add Admin</h3>
+                  <p className="text-xs text-slate-500 mb-3">Use this to add or promote a group admin. Board writers and editors are added from a board.</p>
                   <form onSubmit={handleAddMember} className="flex space-x-3">
                     <input
                       type="email"
                       value={memberEmail}
                       onChange={(e) => setMemberEmail(e.target.value)}
-                      placeholder="Email address"
+                      placeholder="Admin email address"
                       required
                       className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
@@ -400,7 +526,7 @@ export default function Boards() {
                       disabled={addingMember}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
                     >
-                      {addingMember ? 'Adding...' : 'Add'}
+                      {addingMember ? 'Adding...' : 'Add Admin'}
                     </button>
                   </form>
                 </div>
@@ -409,10 +535,18 @@ export default function Boards() {
               {/* Members List */}
               <div>
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">
-                  Members ({group?.members.length})
+                  Group Members ({group?.members.length})
                 </h3>
                 <div className="space-y-3">
-                  {group?.members.map((m) => (
+                  {group?.members.map((m) => {
+                    const memberLabel = getGroupMemberLabel(m.user._id)
+                    const labelClass = memberLabel === 'Owner'
+                      ? 'bg-amber-100 text-amber-700'
+                      : memberLabel === 'Admin'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-600'
+
+                    return (
                     <div
                       key={m.user._id}
                       className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100"
@@ -424,25 +558,27 @@ export default function Boards() {
                         <div>
                           <p className="text-sm font-medium text-slate-800">
                             {m.user.name}
-                            {m.user._id === group?.owner._id && (
-                              <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">Owner</span>
-                            )}
+                            <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full font-medium ${labelClass}`}>
+                              {memberLabel}
+                            </span>
                           </p>
                           <p className="text-xs text-slate-500">{m.user.email}</p>
                         </div>
                       </div>
 
-                      {/* Remove — owner only, can't remove self */}
-                      {isOwner && m.user._id !== user?._id && (
+                      {canRemoveFromGroup(m) ? (
                         <button
                           onClick={() => handleRemoveMember(m.user._id)}
                           className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           Remove
                         </button>
-                      )}
+                      ) : isOwner && memberLabel !== 'Owner' ? (
+                        <span className="text-xs text-slate-400">Manage on board</span>
+                      ) : null}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 

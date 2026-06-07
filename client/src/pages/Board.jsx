@@ -6,6 +6,29 @@ import ArticleModal from '../components/ArticleModal'
 import BoardMembersModal from '../components/BoardMembersModal'
 import PickForReviewModal from '../components/PickForReviewModal'
 
+const BackIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+)
+
+const UsersIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+
+const MoreIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="19" cy="12" r="1" />
+    <circle cx="5" cy="12" r="1" />
+  </svg>
+)
+
 const StatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-gray-100 text-gray-700',
@@ -86,8 +109,28 @@ export default function Board() {
   }
 
   useEffect(() => {
-    fetchBoard()
+    queueMicrotask(() => fetchBoard())
   }, [boardId, isArchivedView])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const articleId = params.get('articleId')
+    if (!articleId) return
+
+    navigate(`/boards/${boardId}`, { replace: true })
+
+    const allArticles = Object.values(articles).flat()
+    const article = allArticles.find(a => a._id === articleId)
+
+    if (article) {
+      queueMicrotask(() => setSelectedArticle(article))
+    } else {
+      axiosInstance.get(`/articles/${articleId}`)
+        .then(res => setSelectedArticle(res.data.article))
+        .catch(err => console.error('Could not load article from notification', err))
+    }
+  }, [location.search, articles, boardId, navigate])
+
   const myRole = board?.members.find(m => m.user._id === user?._id)?.role
   const isBoardAdmin = myRole === 'admin'
   const isAdmin = myRole === 'admin'
@@ -286,26 +329,43 @@ export default function Board() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
 
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
-          <Link to="/" className="text-sm text-slate-500 hover:text-indigo-600">Groups</Link>
-          <span className="text-slate-300">/</span>
-          <Link to={`/groups/${board?.group}`} className="text-sm text-slate-500 hover:text-indigo-600">Boards</Link>
-          <span className="text-slate-300">/</span>
-          <span className="text-sm font-semibold text-slate-800">{isArchivedView ? 'Archived Lists' : board?.name}</span>
+      <header className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between gap-4 flex-shrink-0">
+        <div className="min-w-0">
+          <Link
+            to={`/groups/${board?.group}`}
+            className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-indigo-600"
+          >
+            <BackIcon />
+            All Boards
+          </Link>
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-700 ring-1 ring-indigo-100">
+              {(board?.name || 'B').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="truncate text-xl font-semibold text-slate-900">
+                  {isArchivedView ? 'Archived Lists' : board?.name}
+                </h1>
+                {isClosed && (
+                  <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-medium">
+                    Closed
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-sm text-slate-500">
+                {lists.length} list{lists.length === 1 ? '' : 's'} · {Object.values(articles).flat().length} article{Object.values(articles).flat().length === 1 ? '' : 's'}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center space-x-3">
-          {isClosed && (
-            <span className="text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full font-medium">
-              Closed
-            </span>
-          )}
+        <div className="flex items-center space-x-3 flex-shrink-0">
             <button
               onClick={() => setShowMembers(true)}
-              className="text-sm border border-gray-200 px-4 py-2 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
+              className="inline-flex items-center gap-2 text-sm border border-gray-200 px-4 py-2.5 rounded-lg hover:bg-gray-50 text-slate-700 transition-colors"
             >
-              👥 Members {isAdmin && `(${board?.members?.length || 0})`}
+              <UsersIcon />
+              Members {isAdmin && `(${board?.members?.length || 0})`}
             </button>
           <div className="relative">
             <button
@@ -316,7 +376,7 @@ export default function Board() {
               className="h-10 w-10 rounded-lg border border-gray-200 hover:bg-gray-50 text-slate-700 transition-colors flex items-center justify-center"
               aria-label="Board options"
             >
-              ⋯
+              <MoreIcon />
             </button>
             {showBoardMenu && (
               <div className="absolute right-0 top-12 w-52 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
@@ -365,7 +425,7 @@ export default function Board() {
       </header>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-6">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-100/70 p-6">
         {(isClosed || boardActionError || listActionError) && (
           <div className="mb-4 space-y-3">
             {isClosed && (
@@ -390,10 +450,10 @@ export default function Board() {
 
           {lists.map((list) => (
             <div key={list._id} className="w-72 flex-shrink-0 flex flex-col max-h-full">
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="font-semibold text-slate-700 text-sm flex items-center">
-                  {list.name}
-                  <span className="ml-2 bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">
+              <div className="mb-2 flex items-center justify-between rounded-t-xl border border-b-0 border-gray-200 bg-white px-3 py-3 shadow-sm">
+                <h3 className="min-w-0 font-semibold text-slate-800 text-sm flex items-center">
+                  <span className="truncate">{list.name}</span>
+                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
                     {(articles[list._id] || []).length}
                   </span>
                 </h3>
@@ -401,9 +461,10 @@ export default function Board() {
                   <div className="relative">
                     <button
                       onClick={() => setListMenuOpenId(prev => prev === list._id ? '' : list._id)}
-                      className="h-7 w-7 rounded-md text-slate-500 hover:bg-white hover:text-slate-700 transition-colors"
+                      className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors flex items-center justify-center"
+                      aria-label="List options"
                     >
-                      ⋯
+                      <MoreIcon />
                     </button>
                     {listMenuOpenId === list._id && (
                       <div className="absolute right-0 top-8 w-44 rounded-xl border border-gray-200 bg-white shadow-lg z-20 p-2">
@@ -442,11 +503,11 @@ export default function Board() {
                 )}
               </div>
 
-              <div className="bg-gray-200/60 rounded-xl p-2 flex-1 overflow-y-auto space-y-2 min-h-24">
+              <div className="bg-white/80 border border-gray-200 rounded-b-xl p-2.5 flex-1 overflow-y-auto space-y-2 min-h-24 shadow-sm">
                 {(articles[list._id] || []).map((article) => (
                   <div
                     key={article._id}
-                    className="bg-white p-3 rounded-lg shadow-sm border border-gray-200 transition-all hover:shadow-md"
+                    className="bg-white p-3 rounded-lg border border-gray-200 transition-all hover:border-indigo-200 hover:shadow-md"
                   >
                     {/* Clickable area — opens modal */}
                     <div
@@ -462,8 +523,8 @@ export default function Board() {
                         </span>
                       )}
 
-                      <h4 className="font-medium text-slate-800 text-sm mt-2">{article.title}</h4>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <h4 className="font-medium text-slate-900 text-sm mt-2 leading-5">{article.title}</h4>
+                      <p className="text-xs text-slate-400 mt-1 truncate">
                           {article.isCopy ? article.sourceBoardName : board?.name}
                       </p>
 
@@ -476,7 +537,7 @@ export default function Board() {
                       {/* Locked badge — shown on original */}
                       {article.isLockedForReview && !article.isCopy && (
                         <p className="text-xs text-amber-600 mt-1">
-                          🔒 In review by {article.lockedBy?.name}
+                          Locked for review by {article.lockedBy?.name}
                         </p>
                       )}
                     </div>
@@ -485,7 +546,7 @@ export default function Board() {
                     {(isEditor || isAdmin) && !article.isCopy && !article.isLockedForReview && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowPickModal(article) }}
-                        className="mt-2 w-full text-xs text-indigo-600 hover:text-indigo-800 border border-indigo-200 hover:bg-indigo-50 py-1 rounded-lg transition-colors"
+                        className="mt-3 w-full text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 py-1.5 rounded-lg transition-colors"
                       >
                         Send to Review
                       </button>
@@ -495,7 +556,7 @@ export default function Board() {
                     {(isEditor || isAdmin) && article.isCopy && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleReturnArticle(article._id) }}
-                        className="mt-2 w-full text-xs text-red-500 hover:text-red-700 border border-red-200 hover:bg-red-50 py-1 rounded-lg transition-colors"
+                        className="mt-3 w-full text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 py-1.5 rounded-lg transition-colors"
                       >
                         Delete Copy
                       </button>
@@ -505,25 +566,25 @@ export default function Board() {
 
                 {/* Add Article */}
                 {!isClosed && !isArchivedView && showAddArticle === list._id ? (
-                  <form onSubmit={(e) => handleAddArticle(e, list._id)} className="bg-white p-2 rounded-lg border border-indigo-300">
+                  <form onSubmit={(e) => handleAddArticle(e, list._id)} className="bg-white p-3 rounded-lg border border-indigo-200 shadow-sm">
                     <input
                       autoFocus
                       type="text"
                       value={articleTitle}
                       onChange={(e) => setArticleTitle(e.target.value)}
                       placeholder="Article title..."
-                      className="w-full text-sm border-none outline-none p-1"
+                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
                       required
                     />
                     <div className="flex space-x-2 mt-2">
-                      <button type="submit" className="bg-indigo-600 text-white text-xs px-3 py-1 rounded">Add</button>
-                      <button type="button" onClick={() => setShowAddArticle(null)} className="text-slate-500 text-xs px-2 py-1">Cancel</button>
+                      <button type="submit" className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Add</button>
+                      <button type="button" onClick={() => setShowAddArticle(null)} className="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50">Cancel</button>
                     </div>
                   </form>
                 ) : !isClosed && !isArchivedView ? (
                   <button
                     onClick={() => setShowAddArticle(list._id)}
-                    className="w-full text-left text-xs text-slate-400 hover:text-slate-700 px-2 py-1.5 hover:bg-white rounded transition-colors"
+                    className="w-full text-left text-xs font-medium text-slate-500 hover:text-slate-800 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors"
                   >
                     + Add article
                   </button>
@@ -536,7 +597,7 @@ export default function Board() {
           {!isClosed && !isArchivedView && (
             <div className="w-72 flex-shrink-0">
               {showAddList ? (
-              <form onSubmit={handleAddList} className="bg-white rounded-xl p-3 border border-indigo-300 shadow-sm">
+              <form onSubmit={handleAddList} className="bg-white rounded-xl p-3 border border-indigo-200 shadow-sm">
                 <input
                   autoFocus
                   type="text"
@@ -547,14 +608,14 @@ export default function Board() {
                   required
                 />
                 <div className="flex space-x-2">
-                  <button type="submit" className="bg-indigo-600 text-white text-xs px-3 py-1.5 rounded-lg">Add List</button>
-                  <button type="button" onClick={() => setShowAddList(false)} className="text-slate-500 text-xs px-2 py-1">Cancel</button>
+                  <button type="submit" className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Add List</button>
+                  <button type="button" onClick={() => setShowAddList(false)} className="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50">Cancel</button>
                 </div>
               </form>
               ) : (
               <button
                 onClick={() => setShowAddList(true)}
-                className="w-full text-left text-sm text-slate-500 hover:text-slate-800 bg-gray-200/40 hover:bg-gray-200/80 px-4 py-3 rounded-xl transition-colors"
+                className="w-full text-left text-sm font-medium text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white border border-dashed border-gray-300 px-4 py-3 rounded-xl transition-colors"
               >
                 + Add a list
               </button>
@@ -566,13 +627,12 @@ export default function Board() {
       </div>
 
       {/* Article Modal */}
-      {selectedArticle && (
+        {selectedArticle && (
           <ArticleModal
             article={selectedArticle}
             myRole={myRole}
             isReadOnly={isClosed}
             currentUserId={user?._id}
-            onClose={() => setSelectedArticle(null)}
             onSave={(updated) => {
               if (updated._deleted) {
                 setArticles(prev => ({
@@ -591,7 +651,7 @@ export default function Board() {
               fetchBoard()
             }}
           />
-      )}
+        )}
       {/* Board Members Modal */}
       {showMembers && board && (
         <BoardMembersModal
@@ -688,7 +748,7 @@ export default function Board() {
           groupId={board?.group}
           boardId={boardId}
           onClose={() => setShowPickModal(null)}
-          onPicked={(copy) => {
+          onPicked={() => {
             // Mark original as locked in local state
             setArticles(prev => {
               const updated = {}

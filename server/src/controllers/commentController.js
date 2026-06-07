@@ -1,6 +1,7 @@
 import Comment from '../models/Comment.js'
 import Article from '../models/Article.js'
 import Board from '../models/Board.js'
+import { notify } from '../lib/notify.js'
 
 // helper — check if user is a board member of the article's board
 const getBoardMember = async (articleId, userId) => {
@@ -42,6 +43,79 @@ export const addComment = async (req, res) => {
     })
 
     await comment.populate('author', 'name email profilePic')
+
+    // Fetch article and board once
+    const article = await Article.findById(articleId)
+    const board = article ? await Board.findById(article.board).populate('members.user', 'name') : null
+
+    if (article && parentId) {
+      const parentComment = await Comment.findById(parentId).populate('author', 'name')
+      if (
+        parentComment &&
+        parentComment.author._id.toString() !== req.user._id.toString()
+      ) {
+        await notify(
+          parentComment.author._id,
+          'comment_added',
+          `${req.user.name} replied to your comment on "${article.title}"`,
+          article._id,
+          article.board
+        )
+      }
+    }
+
+    if (
+      article &&
+      !parentId &&
+      article.author.toString() !== req.user._id.toString()
+    ) {
+      await notify(
+        article.author,
+        'comment_added',
+        `${req.user.name} commented on your article "${article.title}"`,
+        article._id,
+        article.board
+      )
+    }
+
+    // Detect @mentions by matching actual board member names.
+    const mentions = new Set()
+    if (board) {
+      const memberNames = board.members
+        .map(member => member.user.name)
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length)
+
+      if (memberNames.length > 0) {
+        const escapedNames = memberNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        const mentionRegex = new RegExp(`@(${escapedNames.join('|')})(?=$|[\\s.,!?;:)])`, 'gi')
+
+        for (const match of body.matchAll(mentionRegex)) {
+          const mentionedName = memberNames.find(name => name.toLowerCase() === match[1].toLowerCase())
+          if (mentionedName) mentions.add(mentionedName)
+        }
+      }
+    }
+
+    if (mentions.size > 0 && board) {
+      for (const mentionedName of mentions) {
+        const boardMember = board.members.find(
+          m => m.user.name === mentionedName
+        )
+        if (
+          boardMember &&
+          boardMember.user._id.toString() !== req.user._id.toString()
+        ) {
+          await notify(
+            boardMember.user._id,
+            'mentioned',
+            `${req.user.name} mentioned you in a comment on "${article.title}"`,
+            article._id,
+            article.board
+          )
+        }
+      }
+    }
 
     res.status(201).json({ message: 'Comment added', comment })
 

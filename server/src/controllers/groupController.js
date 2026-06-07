@@ -1,5 +1,6 @@
 import Group from '../models/Group.js'
 import User from '../models/User.js'
+import Board from '../models/Board.js'
 
 // @route  POST /api/groups
 export const createGroup = async (req, res) => {
@@ -103,16 +104,35 @@ export const inviteMember = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // Check if already a member
     const alreadyMember = group.members.some(m => m.user.equals(userToInvite._id))
-    if (alreadyMember) {
-      return res.status(400).json({ message: 'User is already a member' })
+    if (!alreadyMember) {
+      group.members.push({ user: userToInvite._id })
+      await group.save()
     }
 
-    group.members.push({ user: userToInvite._id })
-    await group.save()
+    await Board.updateMany(
+      {
+        group: group._id,
+        'members.user': userToInvite._id
+      },
+      {
+        $set: { 'members.$.role': 'admin' }
+      }
+    )
+    await Board.updateMany(
+      {
+        group: group._id,
+        'members.user': { $ne: userToInvite._id }
+      },
+      {
+        $push: { members: { user: userToInvite._id, role: 'admin' } }
+      }
+    )
 
-    res.status(200).json({ message: 'Member invited successfully', group })
+    await group.populate('owner', 'name email profilePic')
+    await group.populate('members.user', 'name email profilePic')
+
+    res.status(200).json({ message: 'Admin added successfully', group })
 
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })
@@ -137,8 +157,29 @@ export const removeMember = async (req, res) => {
       return res.status(400).json({ message: 'Cannot remove the group owner' })
     }
 
+    const targetBoards = await Board.find({
+      group: group._id,
+      'members.user': req.params.userId
+    })
+    const isAdminOnAnyBoard = targetBoards.some(board =>
+      board.members.some(member =>
+        member.user.equals(req.params.userId) && member.role === 'admin'
+      )
+    )
+
+    if (targetBoards.length > 0 && !isAdminOnAnyBoard) {
+      return res.status(400).json({ message: 'Writers and editors must be removed from their board member list' })
+    }
+
     group.members = group.members.filter(m => !m.user.equals(req.params.userId))
     await group.save()
+    await Board.updateMany(
+      { group: group._id },
+      { $pull: { members: { user: req.params.userId } } }
+    )
+
+    await group.populate('owner', 'name email profilePic')
+    await group.populate('members.user', 'name email profilePic')
 
     res.status(200).json({ message: 'Member removed successfully', group })
 

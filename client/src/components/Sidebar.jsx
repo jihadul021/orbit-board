@@ -2,12 +2,34 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
+import NotificationPanel from './NotificationPanel'
 
 const roleColors = {
   admin: 'bg-red-100 text-red-700',
   editor: 'bg-blue-100 text-blue-700',
   writer: 'bg-green-100 text-green-700',
 }
+
+const ChevronLeftIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+)
+
+const ChevronRightIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+)
+
+const GridIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <rect width="7" height="7" x="3" y="3" rx="1" />
+    <rect width="7" height="7" x="14" y="3" rx="1" />
+    <rect width="7" height="7" x="14" y="14" rx="1" />
+    <rect width="7" height="7" x="3" y="14" rx="1" />
+  </svg>
+)
 
 export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation()
@@ -21,18 +43,6 @@ export default function Sidebar({ collapsed, onToggle }) {
   const isGroupsPage = location.pathname === '/'
   const isBoardsPage = location.pathname.startsWith('/groups/')
   const isBoardPage = location.pathname.startsWith('/boards/')
-
-  useEffect(() => {
-    if (isBoardPage && params.id) {
-      fetchBoard(params.id)
-    }
-  }, [location.pathname, params.id])
-
-  useEffect(() => {
-    if (board?.group) {
-      fetchBoards(board.group)
-    }
-  }, [board])
 
   const fetchBoard = async (boardId) => {
     try {
@@ -52,6 +62,18 @@ export default function Sidebar({ collapsed, onToggle }) {
     }
   }
 
+  useEffect(() => {
+    if (isBoardPage && params.id) {
+      queueMicrotask(() => fetchBoard(params.id))
+    }
+  }, [location.pathname, params.id])
+
+  useEffect(() => {
+    if (board?.group) {
+      queueMicrotask(() => fetchBoards(board.group))
+    }
+  }, [board])
+
   const handleLogout = async () => {
     await axiosInstance.post('/auth/logout')
     logout()
@@ -64,24 +86,38 @@ export default function Sidebar({ collapsed, onToggle }) {
     <aside className={`h-screen bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 flex-shrink-0 ${collapsed ? 'w-16' : 'w-64'}`}>
 
       {/* Logo + Toggle */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-slate-800">
+      <div className={`border-b border-slate-800 ${collapsed ? 'px-3 py-4' : 'px-4 py-4'}`}>
         {!collapsed && (
-          <Link to="/dashboard" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">O</div>
-            <span className="text-white font-bold text-lg">OrbitBoard</span>
-          </Link>
+          <div className="flex items-center justify-between gap-3">
+            <Link to="/dashboard" className="flex min-w-0 items-center space-x-2">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold flex-shrink-0">O</div>
+              <span className="text-white font-bold text-lg truncate">OrbitBoard</span>
+            </Link>
+            <button
+              onClick={onToggle}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <ChevronLeftIcon />
+            </button>
+          </div>
         )}
         {collapsed && (
-          <Link to="/dashboard" className="mx-auto">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
-          </Link>
+          <div className="flex flex-col items-center gap-3">
+            <Link to="/dashboard">
+              <div className="w-9 h-9 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">O</div>
+            </Link>
+            <button
+              onClick={onToggle}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-400 transition-colors hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+            >
+              <ChevronRightIcon />
+            </button>
+          </div>
         )}
-        <button
-          onClick={onToggle}
-          className={`text-slate-400 hover:text-white p-1 rounded transition-colors ${collapsed ? 'mx-auto mt-2' : ''}`}
-        >
-          {collapsed ? '→' : '←'}
-        </button>
       </div>
 
       {/* Nav */}
@@ -91,9 +127,10 @@ export default function Sidebar({ collapsed, onToggle }) {
         {isGroupsPage && (
           <Link
             to="/dashboard"
-            className="flex items-center px-3 py-2.5 rounded-lg bg-indigo-600 text-white"
+            className={`flex items-center rounded-lg bg-indigo-600 text-white ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}`}
+            title="Your Groups"
           >
-            <span className="text-lg">🏠</span>
+            <GridIcon className="w-4 h-4" />
             {!collapsed && <span className="ml-3 font-medium text-sm">Your Groups</span>}
           </Link>
         )}
@@ -102,9 +139,10 @@ export default function Sidebar({ collapsed, onToggle }) {
         {isBoardsPage && (
             <Link
               to="/dashboard"
-              className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className={`flex items-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}`}
+              title="Back to groups"
             >
-            <span className="text-lg">←</span>
+            <ChevronLeftIcon className="w-4 h-4" />
             {!collapsed && <span className="ml-3 text-sm">All Groups</span>}
           </Link>
         )}
@@ -114,9 +152,10 @@ export default function Sidebar({ collapsed, onToggle }) {
           <>
             <Link
               to={`/groups/${board.group}`}
-              className="flex items-center px-3 py-2.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className={`flex items-center rounded-lg text-slate-300 transition-colors hover:bg-slate-800 hover:text-white ${collapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}`}
+              title="Back to boards"
             >
-              <span className="text-lg">←</span>
+              <ChevronLeftIcon className="w-4 h-4" />
               {!collapsed && <span className="ml-3 text-sm">All Boards</span>}
             </Link>
 
@@ -171,7 +210,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       {/* User Info + Logout */}
       <div className="border-t border-slate-800 p-3">
         {!collapsed ? ( 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center space-x-2 min-w-0">
               <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                 {user?.name?.charAt(0).toUpperCase()}
@@ -183,22 +222,26 @@ export default function Sidebar({ collapsed, onToggle }) {
                 <p className="text-xs text-slate-500 truncate">{user?.email}</p>
               </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-red-400 text-xs ml-2 flex-shrink-0 transition-colors"
-              title="Logout"
-            >
-              ⏻
-            </button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <NotificationPanel collapsed={collapsed} />
+              <button
+                onClick={handleLogout}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
+                title="Logout"
+              >
+                ⏻
+              </button>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center space-y-2">
             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
               {user?.name?.charAt(0).toUpperCase()}
             </div>
+            <NotificationPanel collapsed={collapsed} />
             <button
               onClick={handleLogout}
-              className="text-slate-400 hover:text-red-400 text-xs transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/80 text-slate-400 transition-colors hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-300"
               title="Logout"
             >
               ⏻
