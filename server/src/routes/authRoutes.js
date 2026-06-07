@@ -1,13 +1,39 @@
 import express from 'express'
-import { register, login, logout, refresh, getMe, updateProfile, changePassword } from '../controllers/authController.js'
+import {
+  requestRegisterOtp,
+  verifyRegisterOtp,
+  login,
+  googleAuth,
+  logout,
+  refresh,
+  getMe,
+  updateProfile,
+  changePassword,
+  sendPasswordResetOtp,
+  verifyPasswordResetOtp,
+  resetPassword
+} from '../controllers/authController.js'
 import { protect } from '../middleware/protect.js'
 import { validate } from '../middleware/validate.js'
-import { registerSchema, loginSchema } from '../lib/validationSchemas.js'
+import {
+  registerSchema,
+  loginSchema,
+  googleAuthSchema,
+  verifyRegisterOtpSchema,
+  forgotPasswordEmailSchema,
+  verifyPasswordResetOtpSchema,
+  resetPasswordSchema
+} from '../lib/validationSchemas.js'
 
 const router = express.Router()
 
-router.post('/register', validate(registerSchema), register)
+router.post('/register', validate(registerSchema), requestRegisterOtp)
+router.post('/register/verify', validate(verifyRegisterOtpSchema), verifyRegisterOtp)
 router.post('/login', validate(loginSchema), login)
+router.post('/google', validate(googleAuthSchema), googleAuth)
+router.post('/forgot-password/send-otp', validate(forgotPasswordEmailSchema), sendPasswordResetOtp)
+router.post('/forgot-password/verify-otp', validate(verifyPasswordResetOtpSchema), verifyPasswordResetOtp)
+router.post('/forgot-password/reset', validate(resetPasswordSchema), resetPassword)
 router.post('/logout', logout)
 router.post('/refresh', refresh)
 router.get('/me', protect, getMe)

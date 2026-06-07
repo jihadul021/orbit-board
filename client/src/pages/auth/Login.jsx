@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../../api/axios'
+import GoogleAuthButton from '../../components/GoogleAuthButton'
 import useAuthStore from '../../store/authStore'
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const setAuth = useAuthStore((state) => state.setAuth)
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
@@ -29,6 +31,20 @@ export default function Login() {
     }
   }
 
+  const handleGoogleCredential = useCallback(async (credential) => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await axiosInstance.post('/auth/google', { credential })
+      setAuth(res.data.user, res.data.accessToken)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google login failed')
+    } finally {
+      setLoading(false)
+    }
+  }, [navigate, setAuth])
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 w-full max-w-md p-8">
@@ -47,6 +63,12 @@ export default function Login() {
           </div>
         )}
 
+        {location.state?.message && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-lg px-4 py-3 mb-4">
+            {location.state.message}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
@@ -62,7 +84,12 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-medium text-slate-700">Password</label>
+              <Link to="/forgot-password" className="text-xs font-medium text-indigo-600 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               name="password"
@@ -82,6 +109,14 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-200" />
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">or</span>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        <GoogleAuthButton onCredential={handleGoogleCredential} disabled={loading} />
 
         <p className="text-sm text-slate-500 text-center mt-6">
           Don't have an account?{' '}

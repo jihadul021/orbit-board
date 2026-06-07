@@ -30,6 +30,7 @@ export const createArticle = async (req, res) => {
     }
 
     if (!ensureBoardIsActive(board, res)) return
+    const lastArticle = await Article.findOne({ list: listId }).sort({ position: -1, createdAt: -1 })
 
     const article = await Article.create({
       title,
@@ -37,7 +38,8 @@ export const createArticle = async (req, res) => {
       author: req.user._id,
       list: listId,
       board: list.board,
-      group: list.group
+      group: list.group,
+      position: lastArticle ? lastArticle.position + 1 : 0
     }) 
     // activity log
     await logActivity(article._id, req.user._id, 'article_created')
@@ -67,6 +69,7 @@ export const getArticlesByList = async (req, res) => {
       .populate('author', 'name email profilePic')
       .populate('pickedBy', 'name email profilePic')
       .populate('lockedBy', 'name email profilePic')
+      .sort({ position: 1, createdAt: 1 })
 
     res.status(200).json({ articles })
 
@@ -216,7 +219,7 @@ export const updateArticleStatus = async (req, res) => {
 // @route  PATCH /api/articles/:id/move
 export const moveArticle = async (req, res) => {
   try {
-    const { listId } = req.body
+    const { listId, sourceListId, orderedArticleIds = [], sourceOrderedArticleIds = [] } = req.body
 
     const article = await Article.findById(req.params.id)
     if (!article) {
@@ -228,6 +231,14 @@ export const moveArticle = async (req, res) => {
       return res.status(404).json({ message: 'Target list not found' })
     }
 
+    if (!newList.board.equals(article.board)) {
+      return res.status(400).json({ message: 'Target list must be on the same board' })
+    }
+
+    if (newList.isArchived) {
+      return res.status(400).json({ message: 'Cannot move articles to an archived list' })
+    }
+
     const board = await Board.findById(article.board)
     const isMember = board.members.some(m => m.user.equals(req.user._id))
     if (!isMember) {
@@ -236,8 +247,39 @@ export const moveArticle = async (req, res) => {
 
     if (!ensureBoardIsActive(board, res)) return
 
+    const sourceList = sourceListId ? await List.findById(sourceListId) : null
+    if (sourceListId && !sourceList) {
+      return res.status(404).json({ message: 'Source list not found' })
+    }
+
+    if (sourceList && !sourceList.board.equals(article.board)) {
+      return res.status(400).json({ message: 'Source list must be on the same board' })
+    }
+
+    const updateListOrder = async (orderedIds, targetListId) => {
+      await Promise.all(
+        orderedIds.map((orderedArticleId, index) =>
+          Article.updateOne(
+            { _id: orderedArticleId, board: article.board, list: targetListId },
+            { $set: { position: index } }
+          )
+        )
+      )
+    }
+
+    const movedArticlePosition = orderedArticleIds.indexOf(article._id.toString())
     article.list = listId
+    article.position = movedArticlePosition >= 0 ? movedArticlePosition : article.position
     await article.save()
+
+    if (sourceListId && sourceListId !== listId && sourceOrderedArticleIds.length > 0) {
+      await updateListOrder(sourceOrderedArticleIds, sourceListId)
+    }
+
+    if (orderedArticleIds.length > 0) {
+      await updateListOrder(orderedArticleIds, listId)
+    }
+
     res.status(200).json({ message: 'Article moved', article })
 
   } catch (err) {
