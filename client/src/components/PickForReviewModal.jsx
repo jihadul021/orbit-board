@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import axiosInstance from '../api/axios'
 
 export default function PickForReviewModal({ article, groupId, boardId, onClose, onPicked }) {
@@ -11,15 +11,7 @@ export default function PickForReviewModal({ article, groupId, boardId, onClose,
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchEditorBoards()
-  }, [groupId, boardId])
-
-  useEffect(() => {
-    if (selectedBoard) fetchLists(selectedBoard)
-  }, [selectedBoard])
-
-  const fetchEditorBoards = async () => {
+  const fetchEditorBoards = useCallback(async () => {
     try {
       const res = await axiosInstance.get('/review/boards', {
         params: {
@@ -28,25 +20,33 @@ export default function PickForReviewModal({ article, groupId, boardId, onClose,
         }
       })
       setBoards(res.data.boards)
-    } catch (err) {
+    } catch {
       setError('Failed to load editor boards')
     } finally {
       setLoading(false)
     }
-  }
+  }, [boardId, groupId])
 
-  const fetchLists = async (boardId) => {
+  const fetchLists = useCallback(async (boardId) => {
     setLoadingLists(true)
     setSelectedList('')
     try {
       const res = await axiosInstance.get(`/lists/board/${boardId}`)
       setLists(res.data.lists)
-    } catch (err) {
+    } catch {
       setError('Failed to load lists')
     } finally {
       setLoadingLists(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    queueMicrotask(() => fetchEditorBoards())
+  }, [fetchEditorBoards])
+
+  useEffect(() => {
+    if (selectedBoard) queueMicrotask(() => fetchLists(selectedBoard))
+  }, [fetchLists, selectedBoard])
 
   const handleSubmit = async (e) => {
     e.preventDefault()

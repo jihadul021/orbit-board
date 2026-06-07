@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import axiosInstance from '../api/axios'
 import ArticleEditor from './ArticleEditor'
 import CommentThread from './CommentThread'
@@ -33,8 +33,6 @@ const statusTransitions = {
 }
 
 export default function ArticleModal({ article, myRole, onClose, onSave, isReadOnly = false, currentUserId }) {
-  console.log('ArticleModal article:', article)
-
   const [title, setTitle] = useState(article.title)
   const [body, setBody] = useState(article.body || '')
   const [status, setStatus] = useState(article.status)
@@ -54,7 +52,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   useEffect(() => { latestTitle.current = title }, [title])
   useEffect(() => { latestStatus.current = status }, [status])
 
-  const backgroundSave = async (overrides = {}) => {
+  const backgroundSave = useCallback(async (overrides = {}) => {
     setSaveStatus('saving')
     try {
       await axiosInstance.patch(`/articles/${article._id}`, {
@@ -80,7 +78,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       setSaveStatus('unsaved')
       setError(err.response?.data?.message || 'Auto-save failed')
     }
-  }
+  }, [article._id, article.isCopy, article.status])
 
   useEffect(() => {
     if (isReadOnly) return
@@ -94,7 +92,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       backgroundSave()
     }, 2000)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [body, title])
+  }, [backgroundSave, body, isReadOnly, title])
 
   useEffect(() => {
     if (isReadOnly) return
@@ -103,7 +101,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
       return
     }
     backgroundSave()
-  }, [status])
+  }, [backgroundSave, isReadOnly, status])
 
   const handleSave = async () => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)

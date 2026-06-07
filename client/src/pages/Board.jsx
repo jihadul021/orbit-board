@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
@@ -85,7 +85,7 @@ export default function Board() {
   const isArchivedView = location.pathname.endsWith('/archived')
   const [showPickModal, setShowPickModal] = useState(null) 
 
-  const fetchBoard = async () => {
+  const fetchBoard = useCallback(async () => {
     try {
       const [boardRes, listsRes] = await Promise.all([
         axiosInstance.get(`/boards/${boardId}`),
@@ -113,11 +113,11 @@ export default function Board() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [boardId, isArchivedView])
 
   useEffect(() => {
     queueMicrotask(() => fetchBoard())
-  }, [boardId, isArchivedView])
+  }, [fetchBoard])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)

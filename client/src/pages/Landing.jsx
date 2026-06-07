@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
 import useAuthStore from '../store/authStore'
 import axiosInstance from '../api/axios'
@@ -6,7 +6,6 @@ import axiosInstance from '../api/axios'
     export default function Landing() {
     const heroRef = useRef(null)
     const { user, logout } = useAuthStore()
-    const navigate = useNavigate()
 
     const handleLogout = async () => {
         await axiosInstance.post('/auth/logout')

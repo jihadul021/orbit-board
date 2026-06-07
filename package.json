@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "client:build": "npm --prefix client run build",
+    "client:lint": "npm --prefix client run lint",
+    "server:check": "find server/src -name '*.js' -exec node --check {} \\;",
+    "test": "npm run client:lint && npm run client:build && npm run server:check"
   },
   "keywords": [],
   "author": "",
