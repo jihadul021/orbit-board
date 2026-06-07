@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
@@ -28,7 +28,7 @@ const Avatar = ({ name, size = 'sm' }) => {
   )
 }
 
-const Reply = ({ reply, currentUserId, myRole, onDelete, onEdit }) => {
+const Reply = ({ reply, currentUserId, myRole, onDelete, onEdit, renderCommentBody }) => {
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(reply.body)
   const [saving, setSaving] = useState(false)
@@ -89,7 +89,7 @@ const Reply = ({ reply, currentUserId, myRole, onDelete, onEdit }) => {
               </div>
             </form>
           ) : (
-            <p className="text-sm text-slate-600 leading-relaxed">{reply.body}</p>
+            <p className="text-sm text-slate-600 leading-relaxed">{renderCommentBody(reply.body)}</p>
           )}
         </div>
 
@@ -118,7 +118,7 @@ const Reply = ({ reply, currentUserId, myRole, onDelete, onEdit }) => {
   )
 }
 
-const Comment = ({ comment, currentUserId, myRole, onDelete, onReply, onEdit }) => {
+const Comment = ({ comment, currentUserId, myRole, onDelete, onReply, onEdit, renderCommentBody }) => {
   const [showReplyBox, setShowReplyBox] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -193,7 +193,7 @@ const Comment = ({ comment, currentUserId, myRole, onDelete, onReply, onEdit }) 
                 </div>
               </form>
             ) : (
-              <p className="text-sm text-slate-700 leading-relaxed">{comment.body}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{renderCommentBody(comment.body)}</p>
             )}
           </div>
 
@@ -270,6 +270,7 @@ const Comment = ({ comment, currentUserId, myRole, onDelete, onReply, onEdit }) 
                     myRole={myRole}
                     onDelete={onDelete}
                     onEdit={onEdit}
+                    renderCommentBody={renderCommentBody}
                   />
                 ))}
             </div>
@@ -280,19 +281,19 @@ const Comment = ({ comment, currentUserId, myRole, onDelete, onReply, onEdit }) 
   )
 }
 
-export default function CommentThread({ articleId, myRole }) {
+export default function CommentThread({ articleId, myRole, boardId }) {
   const { user } = useAuthStore()
   const [comments, setComments] = useState([])
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [boardMembers, setBoardMembers] = useState([])
+  const [mentionSuggestions, setMentionSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const inputRef = useRef(null)
 
-  useEffect(() => {
-    fetchComments()
-  }, [articleId])
-
-  const fetchComments = async () => {
+  async function fetchComments() {
     try {
       const res = await axiosInstance.get(`/comments/${articleId}`)
       setComments(res.data.comments)
@@ -304,6 +305,79 @@ export default function CommentThread({ articleId, myRole }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function fetchBoardMembers() {
+    try {
+      const res = await axiosInstance.get(`/boards/${boardId}`)
+      setBoardMembers(res.data.board.members)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      fetchComments()
+      if (boardId) fetchBoardMembers()
+    })
+  }, [articleId, boardId])
+
+  const handleCommentChange = (e) => {
+    const value = e.target.value
+    setNewComment(value)
+
+    // Detect @ mention
+    const cursorPos = e.target.selectionStart
+    const textUpToCursor = value.slice(0, cursorPos)
+    const mentionMatch = textUpToCursor.match(/@([\w\s]*)$/)
+
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase()
+      const filtered = boardMembers
+        .filter(m =>
+          m.user._id !== user?._id &&
+          m.user.name.toLowerCase().includes(query)
+        )
+        .slice(0, 5)
+      setMentionSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleMentionSelect = (member) => {
+    const cursorPos = inputRef.current.selectionStart
+    const textUpToCursor = newComment.slice(0, cursorPos)
+    const textAfterCursor = newComment.slice(cursorPos)
+    const replaced = textUpToCursor.replace(/@[\w\s]*$/, `@${member.user.name} `)
+    setNewComment(replaced + textAfterCursor)
+    setShowSuggestions(false)
+    inputRef.current.focus()
+  }
+
+  const renderCommentBody = (body) => {
+    if (!body) return body
+
+    const mentionNames = boardMembers.map(m => m.user.name).filter(Boolean)
+    if (mentionNames.length === 0) return body
+
+    const sortedNames = [...mentionNames].sort((a, b) => b.length - a.length)
+    const escapedNames = sortedNames.map(name => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const mentionRegex = new RegExp(`@(${escapedNames.join('|')})`, 'g')
+    const parts = body.split(mentionRegex)
+
+    return parts.map((part, i) => {
+      if (mentionNames.includes(part)) {
+        return (
+          <span key={i} className="bg-indigo-100 text-indigo-700 px-1 rounded">
+            @{part}
+          </span>
+        )
+      }
+      return part
+    })
   }
 
   const handleAddComment = async (e) => {
@@ -398,6 +472,7 @@ export default function CommentThread({ articleId, myRole }) {
               onDelete={handleDelete}
               onReply={handleReply}
               onEdit={handleEdit}
+              renderCommentBody={renderCommentBody}
             />
           ))}
         </div>
@@ -409,13 +484,32 @@ export default function CommentThread({ articleId, myRole }) {
         </div>
       )}
 
-      <form onSubmit={handleAddComment} className="flex space-x-2">
+      <form onSubmit={handleAddComment} className="flex space-x-2 relative">
         <Avatar name={user?.name} size="sm" />
-        <div className="flex-1 flex space-x-2">
+        <div className="flex-1 flex space-x-2 relative">
+          {showSuggestions && (
+            <div className="absolute bottom-full left-0 w-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+              {mentionSuggestions.map(m => (
+                <button
+                  key={m.user._id}
+                  type="button"
+                  onClick={() => handleMentionSelect(m)}
+                  className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 flex items-center space-x-2 transition-colors"
+                >
+                  <Avatar name={m.user.name} size="sm" />
+                  <div>
+                    <p className="font-medium">{m.user.name}</p>
+                    <p className="text-xs text-slate-500">{m.role}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
           <input
+            ref={inputRef}
             type="text"
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={handleCommentChange}
             placeholder="Add a comment..."
             className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
           />

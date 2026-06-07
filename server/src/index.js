@@ -13,6 +13,7 @@ import articleRoutes from './routes/articleRoutes.js'
 import commentRoutes from './routes/commentRoutes.js'
 import reviewRoutes from './routes/reviewRoutes.js'
 import activityLogRoutes from './routes/activityLogRoutes.js'
+import notificationRoutes from './routes/notificationRoutes.js'
 import { errorHandler } from './middleware/errorHandler.js'
 
 
@@ -38,6 +39,7 @@ app.use('/api/articles', articleRoutes)
 app.use('/api/comments', commentRoutes)
 app.use('/api/review', reviewRoutes)
 app.use('/api/activity', activityLogRoutes)
+app.use('/api/notifications', notificationRoutes)
 app.use(errorHandler)
 
 // Health check

@@ -2,6 +2,7 @@ import Article from '../models/Article.js'
 import List from '../models/List.js'
 import Board from '../models/Board.js'
 import { logActivity } from '../lib/logActivity.js'
+import { notify } from '../lib/notify.js'
 
 const ensureBoardIsActive = (board, res) => {
   if (board.status === 'closed') {
@@ -174,6 +175,16 @@ export const updateArticleStatus = async (req, res) => {
         from: oldStatus,
         to: status
       })
+
+      if (!article.author.equals(req.user._id)) {
+        await notify(
+          article.author,
+          'status_changed',
+          `Your article "${article.title}" status changed to ${status.replace(/_/g, ' ')}`,
+          article._id,
+          article.board
+        )
+      }
     }
     // If this is a copy — sync status to original and unlock if reviewed/published
     if (article.isCopy && article.sourceArticle) {

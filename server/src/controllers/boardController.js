@@ -1,6 +1,7 @@
 import Board from '../models/Board.js'
 import Group from '../models/Group.js'
 import User from '../models/User.js'
+import { notify } from '../lib/notify.js'
 
 // @route  POST /api/boards
 export const createBoard = async (req, res) => {
@@ -121,6 +122,11 @@ export const updateBoard = async (req, res) => {
 export const addMember = async (req, res) => {
   try {
     const { email, role } = req.body
+    const memberRole = role || 'writer'
+
+    if (!['writer', 'editor'].includes(memberRole)) {
+      return res.status(400).json({ message: 'Board members can only be added as writer or editor. Add admins from group members.' })
+    }
 
     const board = await Board.findById(req.params.id)
     if (!board) {
@@ -158,8 +164,17 @@ export const addMember = async (req, res) => {
     }
 
     // Add to board
-    board.members.push({ user: userToAdd._id, role: role || 'writer' })
+    board.members.push({ user: userToAdd._id, role: memberRole })
     await board.save()
+
+    // Notify the user
+    await notify(
+      userToAdd._id,
+      'added_to_board',
+      `You were added to the board "${board.name}"`,
+      null,
+      board._id
+    )
 
     // Populate and return
     await board.populate('members.user', 'name email profilePic')
@@ -190,8 +205,29 @@ export const removeMember = async (req, res) => {
       return res.status(400).json({ message: 'Cannot remove the board creator' })
     }
 
+    const memberToRemove = board.members.find(m => m.user.equals(req.params.userId))
+    if (!memberToRemove) {
+      return res.status(404).json({ message: 'Member not found on this board' })
+    }
+
+    if (memberToRemove.role === 'admin') {
+      return res.status(400).json({ message: 'Board admins can only be removed from group members' })
+    }
+
     board.members = board.members.filter(m => !m.user.equals(req.params.userId))
     await board.save()
+    const remainingBoardMembership = await Board.exists({
+      group: board.group,
+      'members.user': req.params.userId
+    })
+
+    if (!remainingBoardMembership) {
+      const group = await Group.findById(board.group)
+      if (group && !group.owner.equals(req.params.userId)) {
+        group.members = group.members.filter(m => !m.user.equals(req.params.userId))
+        await group.save()
+      }
+    }
 
     res.status(200).json({ message: 'Member removed successfully', board })
 
@@ -204,6 +240,10 @@ export const removeMember = async (req, res) => {
 export const updateMemberRole = async (req, res) => {
   try {
     const { role } = req.body
+
+    if (!['writer', 'editor'].includes(role)) {
+      return res.status(400).json({ message: 'Board roles can only be changed to writer or editor. Add admins from group members.' })
+    }
 
     const board = await Board.findById(req.params.id)
     if (!board) {
@@ -219,6 +259,10 @@ export const updateMemberRole = async (req, res) => {
     const member = board.members.find(m => m.user.equals(req.params.userId))
     if (!member) {
       return res.status(404).json({ message: 'Member not found on this board' })
+    }
+
+    if (member.role === 'admin') {
+      return res.status(400).json({ message: 'Board admins are managed from group members' })
     }
 
     member.role = role

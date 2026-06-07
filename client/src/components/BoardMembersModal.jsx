@@ -36,7 +36,7 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
 
   const handleRoleChange = async (userId, newRole) => {
     try {
-      const res = await axiosInstance.patch(`/boards/${board._id}/members/${userId}/role`, { role: newRole })
+      await axiosInstance.patch(`/boards/${board._id}/members/${userId}/role`, { role: newRole })
       const boardRes = await axiosInstance.get(`/boards/${board._id}`)
       setMembers(boardRes.data.board.members)
       onUpdate(boardRes.data.board)
@@ -48,7 +48,7 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
   const handleRemove = async (userId) => {
     if (!confirm('Remove this member from the board?')) return
     try {
-      const res = await axiosInstance.delete(`/boards/${board._id}/members/${userId}`)
+      await axiosInstance.delete(`/boards/${board._id}/members/${userId}`)
       const boardRes = await axiosInstance.get(`/boards/${board._id}`)
       setMembers(boardRes.data.board.members)
       onUpdate(boardRes.data.board)
@@ -88,7 +88,8 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
           {/* Add Member — admin only */}
           {isAdmin && (
             <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">Add Member</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-1">Add Member</h3>
+              <p className="text-xs text-slate-500 mb-3">Board members can be added as writers or editors. Add admins from group members.</p>
               <form onSubmit={handleAddMember} className="space-y-3">
                 <input
                   type="email"
@@ -106,7 +107,6 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
                   >
                     <option value="writer">Writer</option>
                     <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
                   </select>
                   <button
                     type="submit"
@@ -128,6 +128,7 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
             <div className="space-y-3">
               {members.map((m) => {
                 const isCurrentAdmin = m.user._id === user?._id && m.role === 'admin'
+                const isBoardAdmin = m.role === 'admin'
 
                 return (
                 <div
@@ -145,17 +146,15 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    {isAdmin ? (
+                    {isAdmin && !isBoardAdmin ? (
                       <>
                         <select
                           value={m.role}
                           onChange={(e) => handleRoleChange(m.user._id, e.target.value)}
-                          disabled={isCurrentAdmin}
                           className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                         >
                           <option value="writer">Writer</option>
                           <option value="editor">Editor</option>
-                          <option value="admin">Admin</option>
                         </select>
                         <button
                           onClick={() => handleRemove(m.user._id)}
@@ -164,6 +163,15 @@ export default function BoardMembersModal({ board, myRole, onClose, onUpdate }) 
                           Remove
                         </button>
                       </>
+                    ) : isAdmin && isBoardAdmin ? (
+                      <div className="text-right">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${roleColors[m.role]}`}>
+                          {m.role}
+                        </span>
+                        {!isCurrentAdmin && (
+                          <p className="mt-1 text-[11px] text-slate-400">Remove from group members</p>
+                        )}
+                      </div>
                     ) : (
                       <span className={`text-xs px-2 py-1 rounded-full font-medium capitalize ${roleColors[m.role]}`}>
                         {m.role}

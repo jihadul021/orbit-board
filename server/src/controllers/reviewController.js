@@ -2,6 +2,14 @@ import Article from '../models/Article.js'
 import Board from '../models/Board.js'
 import List from '../models/List.js'
 import { logActivity } from '../lib/logActivity.js'
+import { notify } from '../lib/notify.js'
+
+// Helper — check if user is a writer on a board
+const isWriterOnBoard = (board, userId) => {
+  const member = board?.members.find(m => m.user.equals(userId))
+  return member?.role === 'writer'
+}
+
 // @route  POST /api/review/pick
 // Editor picks an article — creates a copy in their editor board
 export const pickArticle = async (req, res) => {
@@ -65,6 +73,18 @@ export const pickArticle = async (req, res) => {
     original.lockedBy = req.user._id
     original.status = 'in_review'
     await original.save()
+    
+    // Notify original author (only if they're a writer on the source board)
+    const sourceBoard = await Board.findById(original.board)
+    if (isWriterOnBoard(sourceBoard, original.author)) {
+      await notify(
+        original.author,
+        'article_picked',
+        `Your article "${original.title}" was picked for review by ${req.user.name}`,
+        original._id,
+        original.board
+      )
+    }
     
     // // Log activity on original article
     // await logActivity(original._id, req.user._id, 'selected_for_review', {
@@ -131,6 +151,18 @@ export const updateCopyStatus = async (req, res) => {
           from: oldStatus,
           to: status
         })
+
+        // Notify original author of status change
+        const sourceArticle = await Article.findById(copy.sourceArticle)
+        if (sourceArticle && !sourceArticle.author.equals(req.user._id)) {
+          await notify(
+            sourceArticle.author,
+            'status_changed',
+            `Your article "${sourceArticle.title}" status changed to ${status.replace(/_/g, ' ')}`,
+            sourceArticle._id,
+            sourceArticle.board
+          )
+        }
       }
     }
 
@@ -157,6 +189,21 @@ export const returnArticle = async (req, res) => {
 
     // Just unlock the original — keep whatever status it currently has
     if (copy.sourceArticle) {
+      // Notify original author (only if they're a writer on the source board)
+      const sourceArticle = await Article.findById(copy.sourceArticle)
+      if (sourceArticle) {
+        const sourceBoardData = await Board.findById(sourceArticle.board)
+        if (isWriterOnBoard(sourceBoardData, sourceArticle.author)) {
+          await notify(
+            sourceArticle.author,
+            'article_returned',
+            `Your article "${sourceArticle.title}" was returned from review`,
+            sourceArticle._id,
+            sourceArticle.board
+          )
+        }
+      }
+      
       await Article.findByIdAndUpdate(copy.sourceArticle, {
         isLockedForReview: false,
         lockedBy: null

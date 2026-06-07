@@ -283,7 +283,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
                 onChange={setBody}
                 editable={!isReadOnly}
               />
-              <CommentThread articleId={article._id} myRole={myRole} />
+              <CommentThread articleId={article._id} myRole={myRole} boardId={article.board?._id || article.board} />
 
               {/* Activity Log — editors and admins only, toggle with checkbox */}
               {(myRole === 'editor' || myRole === 'admin') && (

@@ -34,11 +34,11 @@ export const updateBoardSchema = z.object({
 
 export const addBoardMemberSchema = z.object({
   email: z.string().email('Invalid email address').trim(),
-  role: z.enum(['writer', 'editor', 'admin']).default('writer')
+  role: z.enum(['writer', 'editor']).default('writer')
 })
 
 export const updateRoleSchema = z.object({
-  role: z.enum(['writer', 'editor', 'admin'])
+  role: z.enum(['writer', 'editor'])
 })
 
 export const createListSchema = z.object({
