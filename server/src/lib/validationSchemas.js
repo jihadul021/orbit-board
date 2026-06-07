@@ -11,6 +11,26 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required')
 })
 
+export const verifyRegisterOtpSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits')
+})
+
+export const forgotPasswordEmailSchema = z.object({
+  email: z.string().email('Invalid email address').trim()
+})
+
+export const verifyPasswordResetOtpSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits')
+})
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
+})
+
 export const createGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').trim()
 })
@@ -65,7 +85,10 @@ export const updateArticleStatusSchema = z.object({
 })
 
 export const moveArticleSchema = z.object({
-  listId: z.string().min(1, 'List ID is required')
+  listId: z.string().min(1, 'List ID is required'),
+  sourceListId: z.string().min(1, 'Source list ID is required').optional(),
+  orderedArticleIds: z.array(z.string().min(1)).optional(),
+  sourceOrderedArticleIds: z.array(z.string().min(1)).optional()
 })
 
 export const addCommentSchema = z.object({

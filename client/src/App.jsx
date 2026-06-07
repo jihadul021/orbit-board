@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
+import ForgotPassword from './pages/auth/ForgotPassword'
 import Groups from './pages/Groups'
 import Boards from './pages/Boards'
 import Board from './pages/Board'
@@ -30,6 +31,7 @@ export default function App() {
 
         <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+        <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
         <Route path="/" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
         <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
         <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />

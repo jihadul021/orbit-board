@@ -78,6 +78,9 @@ export default function Board() {
   const [listNameInput, setListNameInput] = useState('')
   const [listActionLoading, setListActionLoading] = useState('')
   const [listActionError, setListActionError] = useState('')
+  const [draggedArticle, setDraggedArticle] = useState(null)
+  const [dragOverListId, setDragOverListId] = useState('')
+  const [dragOverPosition, setDragOverPosition] = useState(null)
   const isArchivedView = location.pathname.endsWith('/archived')
   const [showPickModal, setShowPickModal] = useState(null) 
 
@@ -302,6 +305,115 @@ export default function Board() {
     }
   }
 
+  const buildArticleMoveState = (prev, articleId, sourceListId, targetListId, targetIndex) => {
+    const sourceArticles = [...(prev[sourceListId] || [])]
+    const targetArticles = sourceListId === targetListId
+      ? sourceArticles
+      : [...(prev[targetListId] || [])]
+    const sourceIndex = sourceArticles.findIndex(item => item._id === articleId)
+
+    if (sourceIndex === -1) return null
+
+    const [articleToMove] = sourceArticles.splice(sourceIndex, 1)
+    const normalizedIndex = sourceListId === targetListId && sourceIndex < targetIndex
+      ? targetIndex - 1
+      : targetIndex
+    const nextIndex = Math.max(0, Math.min(normalizedIndex, targetArticles.length))
+
+    if (sourceListId === targetListId) {
+      sourceArticles.splice(nextIndex, 0, articleToMove)
+      return {
+        nextArticles: {
+          ...prev,
+          [sourceListId]: sourceArticles
+        },
+        sourceOrderedArticleIds: sourceArticles.map(article => article._id),
+        targetOrderedArticleIds: sourceArticles.map(article => article._id)
+      }
+    }
+
+    targetArticles.splice(nextIndex, 0, { ...articleToMove, list: targetListId })
+
+    return {
+      nextArticles: {
+        ...prev,
+        [sourceListId]: sourceArticles,
+        [targetListId]: targetArticles
+      },
+      sourceOrderedArticleIds: sourceArticles.map(article => article._id),
+      targetOrderedArticleIds: targetArticles.map(article => article._id)
+    }
+  }
+
+  const handleArticleDragStart = (e, article, listId) => {
+    if (isClosed || isArchivedView) return
+
+    setDraggedArticle({ articleId: article._id, sourceListId: listId })
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', article._id)
+  }
+
+  const handleArticleDragEnd = () => {
+    setDraggedArticle(null)
+    setDragOverListId('')
+    setDragOverPosition(null)
+  }
+
+  const handleListDragOver = (e, listId) => {
+    if (!draggedArticle || isClosed || isArchivedView) return
+
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverListId(listId)
+  }
+
+  const handleArticleDragOver = (e, listId, articleIndex) => {
+    if (!draggedArticle || isClosed || isArchivedView) return
+
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const insertAfter = e.clientY > rect.top + rect.height / 2
+    setDragOverListId(listId)
+    setDragOverPosition({
+      listId,
+      index: insertAfter ? articleIndex + 1 : articleIndex
+    })
+  }
+
+  const handleArticleDrop = async (e, targetListId) => {
+    e.preventDefault()
+    if (!draggedArticle || isClosed || isArchivedView) return
+
+    const { articleId, sourceListId } = draggedArticle
+    const previousArticles = articles
+    const targetIndex = dragOverPosition?.listId === targetListId
+      ? dragOverPosition.index
+      : (articles[targetListId] || []).length
+    setDraggedArticle(null)
+    setDragOverListId('')
+    setDragOverPosition(null)
+
+    const moveState = buildArticleMoveState(articles, articleId, sourceListId, targetListId, targetIndex)
+    if (!moveState) return
+
+    setArticles(moveState.nextArticles)
+    setListActionError('')
+
+    try {
+      await axiosInstance.patch(`/articles/${articleId}/move`, {
+        listId: targetListId,
+        sourceListId,
+        orderedArticleIds: moveState.targetOrderedArticleIds,
+        sourceOrderedArticleIds: moveState.sourceOrderedArticleIds
+      })
+    } catch (err) {
+      setArticles(previousArticles)
+      setListActionError(err.response?.data?.message || 'Failed to move article')
+    }
+  }
+
 
   const handleDeleteList = async (list) => {
     if (!confirm('Delete this list permanently? This cannot be undone.')) return
@@ -503,11 +615,36 @@ export default function Board() {
                 )}
               </div>
 
-              <div className="bg-white/80 border border-gray-200 rounded-b-xl p-2.5 flex-1 overflow-y-auto space-y-2 min-h-24 shadow-sm">
-                {(articles[list._id] || []).map((article) => (
+              <div
+                onDragOver={(e) => handleListDragOver(e, list._id)}
+                onDragLeave={() => setDragOverListId(prev => prev === list._id ? '' : prev)}
+                onDrop={(e) => handleArticleDrop(e, list._id)}
+                className={`bg-white/80 border rounded-b-xl p-2.5 flex-1 overflow-y-auto space-y-2 min-h-24 shadow-sm transition-colors ${
+                  dragOverListId === list._id
+                    ? 'border-indigo-300 bg-indigo-50/60'
+                    : 'border-gray-200'
+                }`}
+              >
+                {(articles[list._id] || []).map((article, articleIndex) => (
                   <div
                     key={article._id}
-                    className="bg-white p-3 rounded-lg border border-gray-200 transition-all hover:border-indigo-200 hover:shadow-md"
+                    draggable={!isClosed && !isArchivedView}
+                    onDragStart={(e) => handleArticleDragStart(e, article, list._id)}
+                    onDragOver={(e) => handleArticleDragOver(e, list._id, articleIndex)}
+                    onDragEnd={handleArticleDragEnd}
+                    className={`bg-white p-3 rounded-lg border border-gray-200 transition-all hover:border-indigo-200 hover:shadow-md ${
+                      draggedArticle?.articleId === article._id
+                        ? 'opacity-50 ring-2 ring-indigo-200'
+                        : ''
+                    } ${
+                      dragOverPosition?.listId === list._id && dragOverPosition.index === articleIndex
+                        ? 'border-t-4 border-t-indigo-400'
+                        : ''
+                    } ${
+                      dragOverPosition?.listId === list._id && dragOverPosition.index === articleIndex + 1
+                        ? 'border-b-4 border-b-indigo-400'
+                        : ''
+                    } ${!isClosed && !isArchivedView ? 'cursor-grab active:cursor-grabbing' : ''}`}
                   >
                     {/* Clickable area — opens modal */}
                     <div
@@ -563,6 +700,9 @@ export default function Board() {
                     )}
                   </div>
                 ))}
+                {dragOverPosition?.listId === list._id && dragOverPosition.index === (articles[list._id] || []).length && (
+                  <div className="h-2 rounded-full bg-indigo-300" />
+                )}
 
                 {/* Add Article */}
                 {!isClosed && !isArchivedView && showAddArticle === list._id ? (

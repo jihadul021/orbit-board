@@ -35,6 +35,10 @@ const articleSchema = new mongoose.Schema({
     ref: 'Group',
     required: true
   },
+  position: {
+    type: Number,
+    default: 0
+  },
 
   editedTitle: {
     type: String,
