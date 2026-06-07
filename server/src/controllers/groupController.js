@@ -10,7 +10,7 @@ export const createGroup = async (req, res) => {
     const group = await Group.create({
       name,
       owner: req.user._id,
-      members: [{ user: req.user._id }]
+      members: [{ user: req.user._id, role: 'admin' }]
     })
 
     res.status(201).json({ message: 'Group created', group })
@@ -27,7 +27,29 @@ export const getMyGroups = async (req, res) => {
       .populate('owner', 'name email profilePic')
       .populate('members.user', 'name email profilePic')
 
-    res.status(200).json({ groups })
+    const groupIds = groups.map(group => group._id)
+    const adminBoardGroupIds = await Board.distinct('group', {
+      group: { $in: groupIds },
+      members: {
+        $elemMatch: {
+          user: req.user._id,
+          role: 'admin'
+        }
+      }
+    })
+    const adminBoardGroupIdSet = new Set(adminBoardGroupIds.map(id => id.toString()))
+    const groupsWithPermissions = groups.map(group => {
+      const groupData = group.toObject()
+      const requester = group.members.find(member => member.user._id.equals(req.user._id))
+
+      groupData.canViewGroupStats = group.owner._id.equals(req.user._id) ||
+        requester?.role === 'admin' ||
+        adminBoardGroupIdSet.has(group._id.toString())
+
+      return groupData
+    })
+
+    res.status(200).json({ groups: groupsWithPermissions })
 
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })
@@ -67,8 +89,20 @@ export const updateGroup = async (req, res) => {
       return res.status(404).json({ message: 'Group not found' })
     }
 
-    if (!group.owner.equals(req.user._id)) {
-      return res.status(403).json({ message: 'Only the group owner can rename the group' })
+    const requester = group.members.find(member => member.user.equals(req.user._id))
+    const isGroupAdmin = group.owner.equals(req.user._id) || requester?.role === 'admin'
+    const isBoardAdmin = await Board.exists({
+      group: group._id,
+      members: {
+        $elemMatch: {
+          user: req.user._id,
+          role: 'admin'
+        }
+      }
+    })
+
+    if (!isGroupAdmin && !isBoardAdmin) {
+      return res.status(403).json({ message: 'Only group admins can rename the group' })
     }
 
     group.name = name
@@ -106,7 +140,14 @@ export const inviteMember = async (req, res) => {
 
     const alreadyMember = group.members.some(m => m.user.equals(userToInvite._id))
     if (!alreadyMember) {
-      group.members.push({ user: userToInvite._id })
+      group.members.push({ user: userToInvite._id, role: 'admin' })
+      await group.save()
+    } else {
+      group.members = group.members.map(member => (
+        member.user.equals(userToInvite._id)
+          ? { user: member.user, role: 'admin' }
+          : member
+      ))
       await group.save()
     }
 
