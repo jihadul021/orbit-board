@@ -159,7 +159,7 @@ export const addMember = async (req, res) => {
 
     const alreadyGroupMember = group.members.some(m => m.user.equals(userToAdd._id))
     if (!alreadyGroupMember) {
-      group.members.push({ user: userToAdd._id })
+      group.members.push({ user: userToAdd._id, role: 'member' })
       await group.save()
     }
 

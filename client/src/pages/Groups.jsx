@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
-import useAuthStore from '../store/authStore'
 import PageHeader from '../components/PageHeader'
 
 export default function Groups() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
   const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
@@ -15,19 +13,25 @@ export default function Groups() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchGroups()
-  }, [])
+    let isMounted = true
 
-  const fetchGroups = async () => {
-    try {
-      const res = await axiosInstance.get('/groups')
-      setGroups(res.data.groups)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
+    const loadGroups = async () => {
+      try {
+        const res = await axiosInstance.get('/groups')
+        if (isMounted) setGroups(res.data.groups)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
     }
-  }
+
+    loadGroups()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -42,12 +46,6 @@ export default function Groups() {
     } finally {
       setCreating(false)
     }
-  }
-
-  const handleLogout = async () => {
-    await axiosInstance.post('/auth/logout')
-    logout()
-    navigate('/login')
   }
 
   return (
@@ -87,7 +85,11 @@ export default function Groups() {
                   {group.name.charAt(0).toUpperCase()}
                 </div>
                 <h3 className="font-semibold text-slate-800">{group.name}</h3>
-                <p className="text-xs text-slate-500 mt-1">{group.members.length} member{group.members.length !== 1 ? 's' : ''}</p>
+                {group.canViewGroupStats ? (
+                  <p className="text-xs text-slate-500 mt-1">{group.members.length} member{group.members.length !== 1 ? 's' : ''}</p>
+                ) : (
+                  <p className="text-xs text-slate-500 mt-1">Open workspace</p>
+                )}
               </div>
             ))}
           </div>
@@ -136,6 +138,7 @@ export default function Groups() {
           </div>
         </div>
       )}
+
     </div>
   )
 } 

@@ -30,7 +30,7 @@ axiosInstance.interceptors.response.use(
         localStorage.setItem('accessToken', newToken)
         original.headers.Authorization = `Bearer ${newToken}`
         return axiosInstance(original)
-      } catch (err) {
+      } catch {
         localStorage.removeItem('accessToken')
         window.location.href = '/login'
       }

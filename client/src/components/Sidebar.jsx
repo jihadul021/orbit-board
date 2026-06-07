@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
@@ -44,35 +44,35 @@ export default function Sidebar({ collapsed, onToggle }) {
   const isBoardsPage = location.pathname.startsWith('/groups/')
   const isBoardPage = location.pathname.startsWith('/boards/')
 
-  const fetchBoard = async (boardId) => {
+  const fetchBoard = useCallback(async (boardId) => {
     try {
       const res = await axiosInstance.get(`/boards/${boardId}`)
       setBoard(res.data.board)
     } catch (err) {
       console.error(err)
     }
-  }
+  }, [])
 
-  const fetchBoards = async (groupId) => {
+  const fetchBoards = useCallback(async (groupId) => {
     try {
       const res = await axiosInstance.get(`/boards/group/${groupId}`)
       setBoards(res.data.boards)
     } catch (err) {
       console.error(err)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (isBoardPage && params.id) {
       queueMicrotask(() => fetchBoard(params.id))
     }
-  }, [location.pathname, params.id])
+  }, [fetchBoard, isBoardPage, location.pathname, params.id])
 
   useEffect(() => {
     if (board?.group) {
       queueMicrotask(() => fetchBoards(board.group))
     }
-  }, [board])
+  }, [board, fetchBoards])
 
   const handleLogout = async () => {
     await axiosInstance.post('/auth/logout')

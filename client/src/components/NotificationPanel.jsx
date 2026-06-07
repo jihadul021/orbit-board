@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 
@@ -38,12 +38,21 @@ export default function NotificationPanel({ collapsed }) {
   const panelRef = useRef(null)
   const pollRef = useRef(null)
 
-  // Fetch unread count on mount and every 30 seconds
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const res = await axiosInstance.get('/notifications')
+      setUnreadCount(res.data.unreadCount)
+      setNotifications(res.data.notifications)
+    } catch (err) {
+      console.error(err)
+    }
+  }, [])
+
   useEffect(() => {
-    fetchUnreadCount()
+    queueMicrotask(() => fetchUnreadCount())
     pollRef.current = setInterval(fetchUnreadCount, 30000)
     return () => clearInterval(pollRef.current)
-  }, [])
+  }, [fetchUnreadCount])
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -55,16 +64,6 @@ export default function NotificationPanel({ collapsed }) {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
-
-  const fetchUnreadCount = async () => {
-    try {
-      const res = await axiosInstance.get('/notifications')
-      setUnreadCount(res.data.unreadCount)
-      setNotifications(res.data.notifications)
-    } catch (err) {
-      console.error(err)
-    }
-  }
 
   const handleOpen = async () => {
     setOpen(!open)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
@@ -293,7 +293,7 @@ export default function CommentThread({ articleId, myRole, boardId }) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef(null)
 
-  async function fetchComments() {
+  const fetchComments = useCallback(async () => {
     try {
       const res = await axiosInstance.get(`/comments/${articleId}`)
       setComments(res.data.comments)
@@ -305,23 +305,23 @@ export default function CommentThread({ articleId, myRole, boardId }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [articleId])
 
-  async function fetchBoardMembers() {
+  const fetchBoardMembers = useCallback(async () => {
     try {
       const res = await axiosInstance.get(`/boards/${boardId}`)
       setBoardMembers(res.data.board.members)
     } catch (err) {
       console.error(err)
     }
-  }
+  }, [boardId])
 
   useEffect(() => {
     queueMicrotask(() => {
       fetchComments()
       if (boardId) fetchBoardMembers()
     })
-  }, [articleId, boardId])
+  }, [boardId, fetchBoardMembers, fetchComments])
 
   const handleCommentChange = (e) => {
     const value = e.target.value

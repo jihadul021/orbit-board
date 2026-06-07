@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
@@ -57,6 +57,7 @@ export default function Board() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const [board, setBoard] = useState(null)
+  const [groupName, setGroupName] = useState('')
   const [lists, setLists] = useState([])
   const [articles, setArticles] = useState({})
   const [loading, setLoading] = useState(true)
@@ -84,7 +85,7 @@ export default function Board() {
   const isArchivedView = location.pathname.endsWith('/archived')
   const [showPickModal, setShowPickModal] = useState(null) 
 
-  const fetchBoard = async () => {
+  const fetchBoard = useCallback(async () => {
     try {
       const [boardRes, listsRes] = await Promise.all([
         axiosInstance.get(`/boards/${boardId}`),
@@ -92,6 +93,8 @@ export default function Board() {
       ])
       const fetchedBoard = boardRes.data.board
       const fetchedLists = listsRes.data.lists
+      const boardGroupId = typeof fetchedBoard.group === 'object' ? fetchedBoard.group._id : fetchedBoard.group
+      const groupRes = await axiosInstance.get(`/groups/${boardGroupId}`)
 
       const articleMap = {}
       await Promise.all(
@@ -102,6 +105,7 @@ export default function Board() {
       )
 
       setBoard(fetchedBoard)
+      setGroupName(groupRes.data.group.name)
       setLists(fetchedLists)
       setArticles(articleMap)
     } catch (err) {
@@ -109,11 +113,11 @@ export default function Board() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [boardId, isArchivedView])
 
   useEffect(() => {
     queueMicrotask(() => fetchBoard())
-  }, [boardId, isArchivedView])
+  }, [fetchBoard])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -139,6 +143,8 @@ export default function Board() {
   const isAdmin = myRole === 'admin'
   const isEditor = myRole === 'editor'
   const isClosed = board?.status === 'closed'
+  const boardGroupId = typeof board?.group === 'object' ? board.group._id : board?.group
+  const boardGroupName = groupName || (typeof board?.group === 'object' ? board.group.name : '') || 'All Boards'
 
   const handleAddList = async (e) => {
     e.preventDefault()
@@ -444,11 +450,11 @@ export default function Board() {
       <header className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">
           <Link
-            to={`/groups/${board?.group}`}
+            to={`/groups/${boardGroupId}`}
             className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-indigo-600"
           >
             <BackIcon />
-            All Boards
+            {boardGroupName}
           </Link>
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-lg font-bold text-indigo-700 ring-1 ring-indigo-100">

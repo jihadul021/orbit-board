@@ -1,14 +1,20 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
-import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
-import ForgotPassword from './pages/auth/ForgotPassword'
-import Groups from './pages/Groups'
-import Boards from './pages/Boards'
-import Board from './pages/Board'
 import Layout from './components/Layout'
-import Profile from './pages/Profile'
-import Landing from './pages/Landing'
+
+const Login = lazy(() => import('./pages/auth/Login'))
+const Register = lazy(() => import('./pages/auth/Register'))
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
+const Groups = lazy(() => import('./pages/Groups'))
+const Boards = lazy(() => import('./pages/Boards'))
+const Board = lazy(() => import('./pages/Board'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Landing = lazy(() => import('./pages/Landing'))
+
+const PageFallback = () => (
+  <div className="min-h-screen bg-slate-50" aria-label="Loading" />
+)
 
 const ProtectedRoute = ({ children }) => {
   const user = useAuthStore((state) => state.user)
@@ -25,20 +31,21 @@ const GuestRoute = ({ children }) => {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/dashboard" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/dashboard" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
 
-        <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
-        <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-        <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
-        <Route path="/" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
-        <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
-        <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
-        <Route path="/boards/:id" element={<ProtectedRoute><Board /></ProtectedRoute>} />
-        <Route path="/boards/:id/archived" element={<ProtectedRoute><Board /></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      </Routes>
+          <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+          <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+          <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
+          <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
+          <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
+          <Route path="/boards/:id" element={<ProtectedRoute><Board /></ProtectedRoute>} />
+          <Route path="/boards/:id/archived" element={<ProtectedRoute><Board /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

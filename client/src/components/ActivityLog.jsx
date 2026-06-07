@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import axiosInstance from '../api/axios'
 
 const timeAgo = (date) => {
@@ -68,11 +68,7 @@ export default function ActivityLog({ articleId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    fetchLogs()
-  }, [articleId])
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const res = await axiosInstance.get(`/activity/${articleId}`)
       setLogs(res.data.logs)
@@ -85,7 +81,11 @@ export default function ActivityLog({ articleId }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [articleId])
+
+  useEffect(() => {
+    queueMicrotask(() => fetchLogs())
+  }, [fetchLogs])
 
   if (error === 'forbidden') return null
   if (error === 'failed') return (
