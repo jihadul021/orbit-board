@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../../api/axios'
+import GoogleAuthButton from '../../components/GoogleAuthButton'
 import useAuthStore from '../../store/authStore'
 
 export default function Login() {
@@ -29,6 +30,20 @@ export default function Login() {
       setLoading(false)
     }
   }
+
+  const handleGoogleCredential = useCallback(async (credential) => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await axiosInstance.post('/auth/google', { credential })
+      setAuth(res.data.user, res.data.accessToken)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google login failed')
+    } finally {
+      setLoading(false)
+    }
+  }, [navigate, setAuth])
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -94,6 +109,14 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="my-6 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-200" />
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-400">or</span>
+          <div className="h-px flex-1 bg-gray-200" />
+        </div>
+
+        <GoogleAuthButton onCredential={handleGoogleCredential} disabled={loading} />
 
         <p className="text-sm text-slate-500 text-center mt-6">
           Don't have an account?{' '}

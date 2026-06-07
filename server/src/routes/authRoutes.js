@@ -3,6 +3,7 @@ import {
   requestRegisterOtp,
   verifyRegisterOtp,
   login,
+  googleAuth,
   logout,
   refresh,
   getMe,
@@ -17,6 +18,7 @@ import { validate } from '../middleware/validate.js'
 import {
   registerSchema,
   loginSchema,
+  googleAuthSchema,
   verifyRegisterOtpSchema,
   forgotPasswordEmailSchema,
   verifyPasswordResetOtpSchema,
@@ -28,6 +30,7 @@ const router = express.Router()
 router.post('/register', validate(registerSchema), requestRegisterOtp)
 router.post('/register/verify', validate(verifyRegisterOtpSchema), verifyRegisterOtp)
 router.post('/login', validate(loginSchema), login)
+router.post('/google', validate(googleAuthSchema), googleAuth)
 router.post('/forgot-password/send-otp', validate(forgotPasswordEmailSchema), sendPasswordResetOtp)
 router.post('/forgot-password/verify-otp', validate(verifyPasswordResetOtpSchema), verifyPasswordResetOtp)
 router.post('/forgot-password/reset', validate(resetPasswordSchema), resetPassword)

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import axiosInstance from '../../api/axios'
+import GoogleAuthButton from '../../components/GoogleAuthButton'
 import useAuthStore from '../../store/authStore'
 
 export default function Register() {
@@ -52,6 +53,21 @@ export default function Register() {
     }
   }
 
+  const handleGoogleCredential = useCallback(async (credential) => {
+    setError('')
+    setMessage('')
+    setLoading(true)
+    try {
+      const res = await axiosInstance.post('/auth/google', { credential })
+      setAuth(res.data.user, res.data.accessToken)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google signup failed')
+    } finally {
+      setLoading(false)
+    }
+  }, [navigate, setAuth])
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 w-full max-w-md p-8">
@@ -79,54 +95,64 @@ export default function Register() {
         )}
 
         {step === 'details' ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="Your name"
-            />
-          </div>
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="Your name"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="you@example.com"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="you@example.com"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-              placeholder="Min. 6 characters"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                  placeholder="Min. 6 characters"
+                />
+              </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Sending code...' : 'Send verification code'}
-          </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Sending code...' : 'Send verification code'}
+              </button>
+            </form>
+
+            <div className="my-6 flex items-center gap-3">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span className="text-xs font-medium uppercase tracking-wide text-slate-400">or</span>
+              <div className="h-px flex-1 bg-gray-200" />
+            </div>
+
+            <GoogleAuthButton onCredential={handleGoogleCredential} disabled={loading} />
+          </>
         ) : (
           <form onSubmit={handleVerify} className="space-y-4">
             <div>

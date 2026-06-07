@@ -11,6 +11,10 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required')
 })
 
+export const googleAuthSchema = z.object({
+  credential: z.string().min(1, 'Google credential is required')
+})
+
 export const verifyRegisterOtpSchema = z.object({
   email: z.string().email('Invalid email address').trim(),
   otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits')
