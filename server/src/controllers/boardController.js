@@ -32,9 +32,8 @@ export const createBoard = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this group' })
     }
 
-    // Only owner can create board for now
-    if (!group.owner.equals(req.user._id)) {
-      return res.status(403).json({ message: 'Only the group owner can create boards' })
+    if (!isGroupAdmin(group, req.user._id)) {
+      return res.status(403).json({ message: 'Only group admins can create boards' })
     }
 
     const adminMembers = getGroupAdminBoardMembers(group)

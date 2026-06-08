@@ -291,7 +291,7 @@ export default function Boards() {
               )}
             </div>
           )}
-          {isOwner && (
+          {isGroupAdmin && (
             <button
               onClick={() => setShowCreate(true)}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm shadow-indigo-600/20"
@@ -325,7 +325,7 @@ export default function Boards() {
           {!isClosedBoardsPage && boards.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
               <p className="text-lg font-semibold text-slate-800">No boards yet</p>
-              {isOwner && <p className="text-sm mt-1 text-slate-500">Create a board to start organizing work for this group.</p>}
+              {isGroupAdmin && <p className="text-sm mt-1 text-slate-500">Create a board to start organizing work for this group.</p>}
             </div>
           ) : isClosedBoardsPage ? (
             <section>
