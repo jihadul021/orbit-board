@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore'
 import Layout from './components/Layout'
 
@@ -30,7 +30,7 @@ const GuestRoute = ({ children }) => {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -46,6 +46,6 @@ export default function App() {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         </Routes>
       </Suspense>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
