@@ -2,6 +2,18 @@ import Board from '../models/Board.js'
 import Group from '../models/Group.js'
 import User from '../models/User.js'
 import { notify } from '../lib/notify.js'
+import { ensureGroupAdminsOnBoard, getGroupAdminBoardMembers, idsEqual, isGroupAdmin } from '../lib/groupBoardRoles.js'
+
+const syncGroupAdminsOnBoard = async (board) => {
+  const group = await Group.findById(board.group)
+  if (!group) return null
+
+  if (ensureGroupAdminsOnBoard(board, group)) {
+    await board.save()
+  }
+
+  return group
+}
 
 // @route  POST /api/boards
 export const createBoard = async (req, res) => {
@@ -25,11 +37,12 @@ export const createBoard = async (req, res) => {
       return res.status(403).json({ message: 'Only the group owner can create boards' })
     }
 
+    const adminMembers = getGroupAdminBoardMembers(group)
     const board = await Board.create({
       name,
       group: groupId,
       createdBy: req.user._id,
-      members: [{ user: req.user._id, role: 'admin' }]
+      members: adminMembers.length > 0 ? adminMembers : [{ user: req.user._id, role: 'admin' }]
     })
 
     res.status(201).json({ message: 'Board created', board })
@@ -52,14 +65,23 @@ export const getBoardsByGroup = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this group' })
     }
 
-    // Only return boards where user is a member
-    const boards = await Board.find({
+    const requesterIsGroupAdmin = isGroupAdmin(group, req.user._id)
+    let boards = await Board.find({
       group: req.params.groupId,
-      'members.user': req.user._id,
+      ...(requesterIsGroupAdmin ? {} : { 'members.user': req.user._id }),
       status: 'active'
     })
       .populate('createdBy', 'name email profilePic')
       .populate('members.user', 'name email profilePic')
+
+    if (requesterIsGroupAdmin) {
+      await Promise.all(boards.map(async (board) => {
+        if (ensureGroupAdminsOnBoard(board, group)) {
+          await board.save()
+          await board.populate('members.user', 'name email profilePic')
+        }
+      }))
+    }
 
     res.status(200).json({ boards })
 
@@ -79,7 +101,15 @@ export const getBoardById = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
-    const isMember = board.members.some(m => m.user._id.equals(req.user._id))
+    const group = await Group.findById(board.group)
+    const requesterIsGroupAdmin = group ? isGroupAdmin(group, req.user._id) : false
+
+    if (group && requesterIsGroupAdmin && ensureGroupAdminsOnBoard(board, group)) {
+      await board.save()
+      await board.populate('members.user', 'name email profilePic')
+    }
+
+    const isMember = board.members.some(m => idsEqual(m.user, req.user._id))
     if (!isMember) {
       return res.status(403).json({ message: 'Not a member of this board' })
     }
@@ -101,7 +131,9 @@ export const updateBoard = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    await syncGroupAdminsOnBoard(board)
+
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can rename the board' })
     }
@@ -133,8 +165,13 @@ export const addMember = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
+    const group = await syncGroupAdminsOnBoard(board)
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' })
+    }
+
     // Check if requester is admin on this board
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can add members' })
     }
@@ -145,16 +182,20 @@ export const addMember = async (req, res) => {
       return res.status(404).json({ message: 'User not found' })
     }
 
-    // Check if already a board member
-    const alreadyBoardMember = board.members.some(m => m.user.equals(userToAdd._id))
-    if (alreadyBoardMember) {
-      return res.status(400).json({ message: 'User is already a member of this board' })
-    }
+    const userIsGroupAdmin = isGroupAdmin(group, userToAdd._id)
+    const existingBoardMember = board.members.find(m => idsEqual(m.user, userToAdd._id))
+    if (existingBoardMember) {
+      if (userIsGroupAdmin) {
+        if (existingBoardMember.role !== 'admin') {
+          existingBoardMember.role = 'admin'
+          await board.save()
+        }
+        await board.populate('members.user', 'name email profilePic')
 
-    // Auto-add to group if not already a member
-    const group = await Group.findById(board.group)
-    if (!group) {
-      return res.status(404).json({ message: 'Group not found' })
+        return res.status(200).json({ message: 'Group admin already has admin access on this board', board })
+      }
+
+      return res.status(400).json({ message: 'User is already a member of this board' })
     }
 
     const alreadyGroupMember = group.members.some(m => m.user.equals(userToAdd._id))
@@ -164,7 +205,7 @@ export const addMember = async (req, res) => {
     }
 
     // Add to board
-    board.members.push({ user: userToAdd._id, role: memberRole })
+    board.members.push({ user: userToAdd._id, role: userIsGroupAdmin ? 'admin' : memberRole })
     await board.save()
 
     // Notify the user
@@ -194,8 +235,10 @@ export const removeMember = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
+    await syncGroupAdminsOnBoard(board)
+
     // Check if requester is admin
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can remove members' })
     }
@@ -205,7 +248,7 @@ export const removeMember = async (req, res) => {
       return res.status(400).json({ message: 'Cannot remove the board creator' })
     }
 
-    const memberToRemove = board.members.find(m => m.user.equals(req.params.userId))
+    const memberToRemove = board.members.find(m => idsEqual(m.user, req.params.userId))
     if (!memberToRemove) {
       return res.status(404).json({ message: 'Member not found on this board' })
     }
@@ -214,7 +257,7 @@ export const removeMember = async (req, res) => {
       return res.status(400).json({ message: 'Board admins can only be removed from group members' })
     }
 
-    board.members = board.members.filter(m => !m.user.equals(req.params.userId))
+    board.members = board.members.filter(m => !idsEqual(m.user, req.params.userId))
     await board.save()
     const remainingBoardMembership = await Board.exists({
       group: board.group,
@@ -250,19 +293,32 @@ export const updateMemberRole = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
+    const group = await syncGroupAdminsOnBoard(board)
+    if (!group) {
+      return res.status(404).json({ message: 'Group not found' })
+    }
+
     // Check if requester is admin
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can update roles' })
     }
 
-    const member = board.members.find(m => m.user.equals(req.params.userId))
+    const member = board.members.find(m => idsEqual(m.user, req.params.userId))
     if (!member) {
       return res.status(404).json({ message: 'Member not found on this board' })
     }
 
     if (member.role === 'admin') {
       return res.status(400).json({ message: 'Board admins are managed from group members' })
+    }
+
+    if (isGroupAdmin(group, req.params.userId)) {
+      member.role = 'admin'
+      await board.save()
+      await board.populate('members.user', 'name email profilePic')
+
+      return res.status(200).json({ message: 'Group admin promoted on this board', board })
     }
 
     member.role = role
@@ -283,8 +339,10 @@ export const closeBoard = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
+    await syncGroupAdminsOnBoard(board)
+
     // Only admin can close board
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can close the board' })
     }
@@ -307,7 +365,9 @@ export const reopenBoard = async (req, res) => {
       return res.status(404).json({ message: 'Board not found' })
     }
 
-    const requester = board.members.find(m => m.user.equals(req.user._id))
+    await syncGroupAdminsOnBoard(board)
+
+    const requester = board.members.find(m => idsEqual(m.user, req.user._id))
     if (!requester || requester.role !== 'admin') {
       return res.status(403).json({ message: 'Only board admins can reopen the board' })
     }
@@ -335,13 +395,23 @@ export const getClosedBoards = async (req, res) => {
       return res.status(403).json({ message: 'Not a member of this group' })
     }
 
+    const requesterIsGroupAdmin = isGroupAdmin(group, req.user._id)
     const boards = await Board.find({
       group: req.params.groupId,
-      'members.user': req.user._id,
+      ...(requesterIsGroupAdmin ? {} : { 'members.user': req.user._id }),
       status: 'closed'
     })
       .populate('createdBy', 'name email profilePic')
       .populate('members.user', 'name email profilePic')
+
+    if (requesterIsGroupAdmin) {
+      await Promise.all(boards.map(async (board) => {
+        if (ensureGroupAdminsOnBoard(board, group)) {
+          await board.save()
+          await board.populate('members.user', 'name email profilePic')
+        }
+      }))
+    }
 
     res.status(200).json({ boards })
 
