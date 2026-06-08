@@ -8,7 +8,7 @@ const getTransporter = () => {
   }
 
   return nodemailer.createTransport({
-    service: 'smtp.gmail.com',
+    host: 'smtp.gmail.com',
     port: 465,
     secure: true,
     auth: {
@@ -123,7 +123,7 @@ export const sendOtpEmail = async ({ to, otp, purpose }) => {
     })
 
     if (err.message?.includes('GMAIL_USER')) {
-      throw new Error('Email service is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to server/.env.')
+      throw new Error('Email service is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to the server environment variables.')
     }
 
     if (err.responseCode === 535 || err.code === 'EAUTH') {
