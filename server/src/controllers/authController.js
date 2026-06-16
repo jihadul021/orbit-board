@@ -14,7 +14,7 @@ const normalizeEmail = (email) => email.trim().toLowerCase()
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 const isEmailError = (err) => (
-  err.message?.includes('Gmail') ||
+  err.message?.includes('Resend') ||
   err.message?.includes('Email service') ||
   err.message?.includes('OTP email')
 )

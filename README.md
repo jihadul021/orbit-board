@@ -38,7 +38,7 @@ OrbitBoard is a full-stack collaborative editorial workflow platform for teams t
 - JWT authentication
 - bcryptjs password hashing
 - Google Auth Library
-- Nodemailer with Gmail app-password support
+- Resend email delivery for OTP emails
 - Helmet
 - CORS
 - Morgan
@@ -71,7 +71,7 @@ OrbitBoard/
 - Node.js 20 or newer
 - npm
 - MongoDB database
-- Gmail account with an app password for OTP emails
+- Resend API key for OTP emails
 - Google OAuth client ID for Google sign-in
 
 ### Installation
@@ -99,8 +99,8 @@ CLIENT_URL=http://localhost:5173
 JWT_ACCESS_SECRET=your_access_token_secret
 JWT_REFRESH_SECRET=your_refresh_token_secret
 GOOGLE_CLIENT_ID=your_google_client_id
-GMAIL_USER=your_gmail_address
-GMAIL_APP_PASSWORD=your_gmail_app_password
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM_EMAIL=onboarding@resend.dev
 ```
 
 ### Run Locally
@@ -137,4 +137,3 @@ The client runs on the Vite development URL, usually `http://localhost:5173`, an
 - `POST /api/review/pick` sends an article copy to an editor board.
 - `GET /api/notifications` returns notifications and unread counts.
 - `GET /api/activity/:articleId` returns article activity history.
-
