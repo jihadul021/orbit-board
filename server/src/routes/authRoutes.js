@@ -1,39 +1,27 @@
 import express from 'express'
 import {
-  requestRegisterOtp,
-  verifyRegisterOtp,
+  register,
   login,
   googleAuth,
   logout,
   refresh,
   getMe,
   updateProfile,
-  changePassword,
-  sendPasswordResetOtp,
-  verifyPasswordResetOtp,
-  resetPassword
+  changePassword
 } from '../controllers/authController.js'
 import { protect } from '../middleware/protect.js'
 import { validate } from '../middleware/validate.js'
 import {
   registerSchema,
   loginSchema,
-  googleAuthSchema,
-  verifyRegisterOtpSchema,
-  forgotPasswordEmailSchema,
-  verifyPasswordResetOtpSchema,
-  resetPasswordSchema
+  googleAuthSchema
 } from '../lib/validationSchemas.js'
 
 const router = express.Router()
 
-router.post('/register', validate(registerSchema), requestRegisterOtp)
-router.post('/register/verify', validate(verifyRegisterOtpSchema), verifyRegisterOtp)
+router.post('/register', validate(registerSchema), register)
 router.post('/login', validate(loginSchema), login)
 router.post('/google', validate(googleAuthSchema), googleAuth)
-router.post('/forgot-password/send-otp', validate(forgotPasswordEmailSchema), sendPasswordResetOtp)
-router.post('/forgot-password/verify-otp', validate(verifyPasswordResetOtpSchema), verifyPasswordResetOtp)
-router.post('/forgot-password/reset', validate(resetPasswordSchema), resetPassword)
 router.post('/logout', logout)
 router.post('/refresh', refresh)
 router.get('/me', protect, getMe)

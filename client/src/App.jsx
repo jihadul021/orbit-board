@@ -5,7 +5,6 @@ import Layout from './components/Layout'
 
 const Login = lazy(() => import('./pages/auth/Login'))
 const Register = lazy(() => import('./pages/auth/Register'))
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
 const Groups = lazy(() => import('./pages/Groups'))
 const Boards = lazy(() => import('./pages/Boards'))
 const Board = lazy(() => import('./pages/Board'))
@@ -38,7 +37,6 @@ export default function App() {
 
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-          <Route path="/forgot-password" element={<GuestRoute><ForgotPassword /></GuestRoute>} />
           <Route path="/groups/:id" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
           <Route path="/groups/:id/closed" element={<ProtectedRoute><Boards /></ProtectedRoute>} />
           <Route path="/boards/:id" element={<ProtectedRoute><Board /></ProtectedRoute>} />

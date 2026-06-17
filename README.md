@@ -1,10 +1,10 @@
 # OrbitBoard
 
-OrbitBoard is a full-stack collaborative editorial workflow platform for teams that manage content through groups, boards, lists, review stages, comments, notifications, and activity history. It combines a Kanban-style workspace with article editing, role-based access, OTP authentication, and review handoffs between writer and editor boards.
+OrbitBoard is a full-stack collaborative editorial workflow platform for teams that manage content through groups, boards, lists, review stages, comments, notifications, and activity history. It combines a Kanban-style workspace with article editing, role-based access, direct account registration, and review handoffs between writer and editor boards.
 
 ## Features
 
-- User authentication with email OTP verification, password reset OTP, Google sign-in, JWT access tokens, and httpOnly refresh-token cookies.
+- User authentication with direct email/password registration, Google sign-in, JWT access tokens, and httpOnly refresh-token cookies.
 - Group workspaces where users can create teams, invite members, manage roles, and organize multiple boards.
 - Board and list management with active, closed, archived, and restored workflow states.
 - Article workflow management with rich-text editing, autosave, status transitions, drag-and-drop movement, review copies, and version comparison.
@@ -38,7 +38,6 @@ OrbitBoard is a full-stack collaborative editorial workflow platform for teams t
 - JWT authentication
 - bcryptjs password hashing
 - Google Auth Library
-- Resend email delivery for OTP emails
 - Helmet
 - CORS
 - Morgan
@@ -57,7 +56,7 @@ OrbitBoard/
 ├── server/                 # Express + MongoDB backend
 │   └── src/
 │       ├── controllers/    # Request handlers
-│       ├── lib/            # Tokens, email, validation, logging helpers
+│       ├── lib/            # Tokens, validation, logging helpers
 │       ├── middleware/     # Auth, validation, error handling
 │       ├── models/         # Mongoose schemas
 │       └── routes/         # API routes
@@ -71,7 +70,6 @@ OrbitBoard/
 - Node.js 20 or newer
 - npm
 - MongoDB database
-- Resend API key for OTP emails
 - Google OAuth client ID for Google sign-in
 
 ### Installation
@@ -99,8 +97,6 @@ CLIENT_URL=http://localhost:5173
 JWT_ACCESS_SECRET=your_access_token_secret
 JWT_REFRESH_SECRET=your_refresh_token_secret
 GOOGLE_CLIENT_ID=your_google_client_id
-RESEND_API_KEY=your_resend_api_key
-RESEND_FROM_EMAIL=onboarding@resend.dev
 ```
 
 ### Run Locally
@@ -122,11 +118,9 @@ The client runs on the Vite development URL, usually `http://localhost:5173`, an
 
 ## API Overview
 
-- `POST /api/auth/register` sends an OTP for registration.
-- `POST /api/auth/register/verify` verifies registration OTP and creates a user.
+- `POST /api/auth/register` creates a user and signs them in.
 - `POST /api/auth/login` signs in a user.
 - `POST /api/auth/google` signs in with Google.
-- `POST /api/auth/forgot-password/send-otp` starts password recovery.
 - `GET /api/groups` returns the current user's groups.
 - `POST /api/groups` creates a group.
 - `GET /api/boards/group/:groupId` returns boards in a group.
