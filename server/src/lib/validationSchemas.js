@@ -15,6 +15,26 @@ export const googleAuthSchema = z.object({
   credential: z.string().min(1, 'Google credential is required')
 })
 
+export const verifyRegisterOtpSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits')
+})
+
+export const forgotPasswordEmailSchema = z.object({
+  email: z.string().email('Invalid email address').trim()
+})
+
+export const verifyPasswordResetOtpSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits')
+})
+
+export const resetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address').trim(),
+  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  password: z.string().min(6, 'Password must be at least 6 characters')
+})
+
 export const createGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').trim()
 })
