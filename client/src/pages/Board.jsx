@@ -45,7 +45,7 @@ const StatusBadge = ({ status }) => {
     published: 'Published',
   }
   return (
-    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
+    <span className={`px-2 py-1 rounded-full text-[11px] font-medium ${styles[status]}`}>
       {labels[status]}
     </span>
   )
@@ -446,7 +446,101 @@ export default function Board() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur sm:hidden">
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            <Link
+              to={`/groups/${boardGroupId}`}
+              className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+              aria-label="Back to boards"
+            >
+              <BackIcon />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                {boardGroupName}
+              </p>
+              <div className="mt-0.5 flex items-center gap-2">
+                <h1 className="truncate text-base font-semibold text-slate-900">
+                  {isArchivedView ? 'Archived Lists' : board?.name}
+                </h1>
+                {isClosed && (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+                    Closed
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {lists.length} list{lists.length === 1 ? '' : 's'} · {Object.values(articles).flat().length} article{Object.values(articles).flat().length === 1 ? '' : 's'}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button
+                onClick={() => setShowMembers(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+                aria-label="Members"
+              >
+                <UsersIcon />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowBoardMenu(prev => !prev)
+                    setShowSettingsMenu(false)
+                  }}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+                  aria-label="Board options"
+                >
+                  <MoreIcon />
+                </button>
+                {showBoardMenu && (
+                  <div className="absolute right-0 top-11 w-56 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+                    <button
+                      onClick={() => {
+                        navigate(isArchivedView ? `/boards/${boardId}` : `/boards/${boardId}/archived`)
+                        setShowBoardMenu(false)
+                      }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-gray-50"
+                    >
+                      {isArchivedView ? 'Back to Board' : 'Archived Lists'}
+                    </button>
+                    {isBoardAdmin && (
+                      <button
+                        onClick={() => {
+                          setShowSettingsMenu(prev => !prev)
+                        }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-gray-50"
+                      >
+                        Settings
+                      </button>
+                    )}
+                    {isBoardAdmin && showSettingsMenu && (
+                      <div className="mt-1 border-t border-gray-100 pt-2">
+                        <button
+                          onClick={openRenameBoard}
+                          className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-gray-50"
+                        >
+                          Change Board Name
+                        </button>
+                        <button
+                          onClick={isClosed ? handleReopenBoard : handleCloseBoard}
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 ${
+                            isClosed ? 'text-emerald-700' : 'text-rose-600'
+                          }`}
+                        >
+                          {isClosed ? 'Reopen Board' : 'Close Board'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
+      <div className="hidden sm:block">
       <header className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">
           <Link
@@ -541,9 +635,10 @@ export default function Board() {
           {/* <span className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full font-medium capitalize">{myRole}</span> */}
         </div>
       </header>
+      </div>
 
       {/* Board */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-100/70 p-6">
+      <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-100/70 p-3 sm:p-6">
         {(isClosed || boardActionError || listActionError) && (
           <div className="mb-4 space-y-3">
             {isClosed && (
@@ -564,14 +659,14 @@ export default function Board() {
           </div>
         )}
 
-        <div className="flex space-x-4 h-full items-start">
+        <div className="flex h-full items-start space-x-3 sm:space-x-4 min-w-max">
 
           {lists.map((list) => (
-            <div key={list._id} className="w-72 flex-shrink-0 flex flex-col max-h-full">
-              <div className="mb-2 flex items-center justify-between rounded-t-xl border border-b-0 border-gray-200 bg-white px-3 py-3 shadow-sm">
+            <div key={list._id} className="w-60 flex-shrink-0 flex flex-col max-h-full sm:w-72">
+              <div className="mb-2 flex items-center justify-between rounded-t-xl border border-b-0 border-gray-200 bg-white px-3 py-2.5 shadow-sm">
                 <h3 className="min-w-0 font-semibold text-slate-800 text-sm flex items-center">
                   <span className="truncate">{list.name}</span>
-                  <span className="ml-2 bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xs">
+                  <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
                     {(articles[list._id] || []).length}
                   </span>
                 </h3>
@@ -579,7 +674,7 @@ export default function Board() {
                   <div className="relative">
                     <button
                       onClick={() => setListMenuOpenId(prev => prev === list._id ? '' : list._id)}
-                      className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors flex items-center justify-center"
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
                       aria-label="List options"
                     >
                       <MoreIcon />
@@ -625,7 +720,7 @@ export default function Board() {
                 onDragOver={(e) => handleListDragOver(e, list._id)}
                 onDragLeave={() => setDragOverListId(prev => prev === list._id ? '' : prev)}
                 onDrop={(e) => handleArticleDrop(e, list._id)}
-                className={`bg-white/80 border rounded-b-xl p-2.5 flex-1 overflow-y-auto space-y-2 min-h-24 shadow-sm transition-colors ${
+                className={`bg-white/80 border rounded-b-xl p-2 flex-1 overflow-y-auto space-y-2 min-h-24 shadow-sm transition-colors ${
                   dragOverListId === list._id
                     ? 'border-indigo-300 bg-indigo-50/60'
                     : 'border-gray-200'
@@ -638,7 +733,7 @@ export default function Board() {
                     onDragStart={(e) => handleArticleDragStart(e, article, list._id)}
                     onDragOver={(e) => handleArticleDragOver(e, list._id, articleIndex)}
                     onDragEnd={handleArticleDragEnd}
-                    className={`bg-white p-3 rounded-lg border border-gray-200 transition-all hover:border-indigo-200 hover:shadow-md ${
+                    className={`bg-white p-2.5 rounded-lg border border-gray-200 transition-all hover:border-indigo-200 hover:shadow-md ${
                       draggedArticle?.articleId === article._id
                         ? 'opacity-50 ring-2 ring-indigo-200'
                         : ''
@@ -661,25 +756,25 @@ export default function Board() {
 
                       {/* Copy badge */}
                       {article.isCopy && (
-                        <span className="ml-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                        <span className="ml-1 rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-medium text-purple-700">
                           Copy
                         </span>
                       )}
 
-                      <h4 className="font-medium text-slate-900 text-sm mt-2 leading-5">{article.title}</h4>
-                      <p className="text-xs text-slate-400 mt-1 truncate">
+                      <h4 className="mt-2 text-[12px] font-medium leading-4 text-slate-900 sm:text-sm sm:leading-5">{article.title}</h4>
+                      <p className="mt-1 hidden truncate text-xs text-slate-400 sm:block">
                           {article.isCopy ? article.sourceBoardName : board?.name}
                       </p>
 
                       {article.isCopy && article.pickedBy && (
-                        <p className="text-xs text-indigo-500 mt-0.5">
+                        <p className="mt-0.5 hidden text-xs text-indigo-500 sm:block">
                           Editor: {article.pickedBy?.name}
                         </p>
                       )}
 
                       {/* Locked badge — shown on original */}
                       {article.isLockedForReview && !article.isCopy && (
-                        <p className="text-xs text-amber-600 mt-1">
+                        <p className="mt-1 text-[11px] text-amber-600">
                           Locked for review by {article.lockedBy?.name}
                         </p>
                       )}
@@ -689,7 +784,7 @@ export default function Board() {
                     {(isEditor || isAdmin) && !article.isCopy && !article.isLockedForReview && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowPickModal(article) }}
-                        className="mt-3 w-full text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50/50 hover:bg-indigo-50 py-1.5 rounded-lg transition-colors"
+                        className="mt-2.5 w-full rounded-lg border border-indigo-200 bg-indigo-50/50 py-1.5 text-[11px] font-medium text-indigo-700 transition-colors hover:bg-indigo-50 sm:mt-3 sm:text-xs"
                       >
                         Send to Review
                       </button>
@@ -699,7 +794,7 @@ export default function Board() {
                     {(isEditor || isAdmin) && article.isCopy && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleReturnArticle(article._id) }}
-                        className="mt-3 w-full text-xs font-medium text-red-600 border border-red-200 hover:bg-red-50 py-1.5 rounded-lg transition-colors"
+                        className="mt-2.5 w-full rounded-lg border border-red-200 py-1.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-50 sm:mt-3 sm:text-xs"
                       >
                         Delete Copy
                       </button>
@@ -712,25 +807,25 @@ export default function Board() {
 
                 {/* Add Article */}
                 {!isClosed && !isArchivedView && showAddArticle === list._id ? (
-                  <form onSubmit={(e) => handleAddArticle(e, list._id)} className="bg-white p-3 rounded-lg border border-indigo-200 shadow-sm">
+                  <form onSubmit={(e) => handleAddArticle(e, list._id)} className="bg-white p-2.5 rounded-lg border border-indigo-200 shadow-sm">
                     <input
                       autoFocus
                       type="text"
                       value={articleTitle}
                       onChange={(e) => setArticleTitle(e.target.value)}
                       placeholder="Article title..."
-                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                       required
                     />
-                    <div className="flex space-x-2 mt-2">
-                      <button type="submit" className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Add</button>
-                      <button type="button" onClick={() => setShowAddArticle(null)} className="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50">Cancel</button>
+                    <div className="mt-2 flex space-x-2">
+                      <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white">Add</button>
+                      <button type="button" onClick={() => setShowAddArticle(null)} className="rounded-lg px-2 py-1.5 text-[11px] text-slate-500 hover:bg-slate-50">Cancel</button>
                     </div>
                   </form>
                 ) : !isClosed && !isArchivedView ? (
                   <button
                     onClick={() => setShowAddArticle(list._id)}
-                    className="w-full text-left text-xs font-medium text-slate-500 hover:text-slate-800 px-3 py-2 hover:bg-slate-50 rounded-lg transition-colors"
+                    className="w-full rounded-lg px-3 py-2 text-left text-[11px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 sm:text-xs"
                   >
                     + Add article
                   </button>
@@ -741,27 +836,27 @@ export default function Board() {
 
           {/* Add List */}
           {!isClosed && !isArchivedView && (
-            <div className="w-72 flex-shrink-0">
+            <div className="w-60 flex-shrink-0 sm:w-72">
               {showAddList ? (
-              <form onSubmit={handleAddList} className="bg-white rounded-xl p-3 border border-indigo-200 shadow-sm">
+              <form onSubmit={handleAddList} className="rounded-xl border border-indigo-200 bg-white p-2.5 shadow-sm">
                 <input
                   autoFocus
                   type="text"
                   value={listName}
                   onChange={(e) => setListName(e.target.value)}
                   placeholder="List name..."
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                  className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
                 <div className="flex space-x-2">
-                  <button type="submit" className="bg-indigo-600 text-white text-xs font-medium px-3 py-1.5 rounded-lg">Add List</button>
-                  <button type="button" onClick={() => setShowAddList(false)} className="text-slate-500 text-xs px-2 py-1.5 rounded-lg hover:bg-slate-50">Cancel</button>
+                  <button type="submit" className="rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-medium text-white">Add List</button>
+                  <button type="button" onClick={() => setShowAddList(false)} className="rounded-lg px-2 py-1.5 text-[11px] text-slate-500 hover:bg-slate-50">Cancel</button>
                 </div>
               </form>
               ) : (
               <button
                 onClick={() => setShowAddList(true)}
-                className="w-full text-left text-sm font-medium text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white border border-dashed border-gray-300 px-4 py-3 rounded-xl transition-colors"
+                className="w-full rounded-xl border border-dashed border-gray-300 bg-white/70 px-4 py-3 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-white hover:text-slate-900"
               >
                 + Add a list
               </button>

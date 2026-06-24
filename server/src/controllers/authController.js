@@ -7,9 +7,49 @@ import { generateAccessToken, generateRefreshToken, sendRefreshToken } from '../
 import { sendOtpEmail } from '../lib/email.js'
 
 const OTP_TTL_MINUTES = 10
+const LOGIN_ATTEMPT_WINDOW_MS = 15 * 60 * 1000
+const LOGIN_ATTEMPT_MAX = 5
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+const loginAttempts = new Map()
 
 const normalizeEmail = (email) => email.trim().toLowerCase()
+
+const getLoginAttemptKey = (req, email) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'unknown'
+  return `${ip}:${normalizeEmail(email)}`
+}
+
+const getLoginAttempt = (req, email) => {
+  const key = getLoginAttemptKey(req, email)
+  const attempt = loginAttempts.get(key)
+
+  if (!attempt || attempt.resetAt <= Date.now()) {
+    loginAttempts.delete(key)
+    return { key, count: 0, resetAt: Date.now() + LOGIN_ATTEMPT_WINDOW_MS }
+  }
+
+  return { key, ...attempt }
+}
+
+const isLoginBlocked = (req, email) => {
+  const attempt = getLoginAttempt(req, email)
+  return {
+    blocked: attempt.count >= LOGIN_ATTEMPT_MAX,
+    retryAfterSeconds: Math.max(1, Math.ceil((attempt.resetAt - Date.now()) / 1000))
+  }
+}
+
+const recordFailedLogin = (req, email) => {
+  const attempt = getLoginAttempt(req, email)
+  loginAttempts.set(attempt.key, {
+    count: attempt.count + 1,
+    resetAt: attempt.resetAt
+  })
+}
+
+const clearFailedLogins = (req, email) => {
+  loginAttempts.delete(getLoginAttemptKey(req, email))
+}
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 
@@ -278,21 +318,32 @@ export const resetPassword = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body
+    const normalizedEmail = normalizeEmail(email)
+    const loginBlock = isLoginBlocked(req, normalizedEmail)
 
-    const user = await User.findOne({ email })
+    if (loginBlock.blocked) {
+      res.set('Retry-After', loginBlock.retryAfterSeconds.toString())
+      return res.status(429).json({ message: 'Too many failed login attempts. Try again later.' })
+    }
+
+    const user = await User.findOne({ email: normalizedEmail })
     if (!user) {
+      recordFailedLogin(req, normalizedEmail)
       return res.status(401).json({ message: 'Invalid email or password' })
     }
 
     if (!user.password) {
+      recordFailedLogin(req, normalizedEmail)
       return res.status(401).json({ message: 'This account uses Google login. Continue with Gmail instead.' })
     }
 
     const isMatch = await bcryptjs.compare(password, user.password)
     if (!isMatch) {
+      recordFailedLogin(req, normalizedEmail)
       return res.status(401).json({ message: 'Invalid email or password' })
     }
 
+    clearFailedLogins(req, normalizedEmail)
     sendAuthResponse(res, user, 'Login successful')
 
   } catch (err) {

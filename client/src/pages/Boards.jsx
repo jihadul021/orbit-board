@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link, useLocation } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
+import NotificationPanel from '../components/NotificationPanel'
 
 const BackIcon = ({ className = 'w-4 h-4' }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -41,6 +42,7 @@ export default function Boards() {
   const [group, setGroup] = useState(null)
   const [boards, setBoards] = useState([])
   const [closedBoards, setClosedBoards] = useState([])
+  const [adminBoard, setAdminBoard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [reopeningBoardId, setReopeningBoardId] = useState('')
   const [showSettingsMenu, setShowSettingsMenu] = useState(false)
@@ -68,17 +70,19 @@ export default function Boards() {
 
     const loadData = async () => {
       try {
-        const [groupRes, boardsRes, closedBoardsRes] = await Promise.all([
+        const [groupRes, boardsRes, closedBoardsRes, adminBoardRes] = await Promise.all([
           axiosInstance.get(`/groups/${groupId}`),
           axiosInstance.get(`/boards/group/${groupId}`),
-          axiosInstance.get(`/boards/group/${groupId}/closed`)
-        ])
+          axiosInstance.get(`/boards/group/${groupId}/closed`),
+          axiosInstance.get(`/boards/group/${groupId}/admin-board`).catch(() => ({ data: { board: null } }))
+        ]) 
 
         if (!isMounted) return
 
         setGroup(groupRes.data.group)
         setBoards(boardsRes.data.boards)
         setClosedBoards(closedBoardsRes.data.boards)
+        setAdminBoard(adminBoardRes.data.board)
       } catch (err) {
         console.error(err)
       } finally {
@@ -222,7 +226,92 @@ export default function Boards() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur sm:hidden">
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            <Link
+              to="/dashboard"
+              className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+              aria-label="Back to groups"
+            >
+              <BackIcon />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                {isClosedBoardsPage ? 'Closed boards' : 'Group boards'}
+              </p>
+              <h1 className="truncate text-base font-semibold text-slate-900">
+                {group?.name || 'Loading group'}
+              </h1>
+              <p className="mt-1 max-h-8 overflow-hidden text-xs text-slate-500">
+                {isClosedBoardsPage
+                  ? 'Review inactive boards and reopen them when work resumes.'
+                  : isGroupAdmin
+                    ? `${boards.length} active board${boards.length === 1 ? '' : 's'}`
+                    : `${boards.length} board${boards.length === 1 ? '' : 's'} available to you.`}
+              </p>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              {isGroupAdmin && (
+                <button
+                  onClick={() => setShowMembers(true)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+                  aria-label="Members"
+                >
+                  <UsersIcon />
+                </button>
+              )}
 
+            {isGroupAdmin && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowSettingsMenu(prev => !prev)}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50"
+                  aria-label="Group options"
+                >
+                  <MoreIcon />
+                </button>
+                {showSettingsMenu && (
+                  <div className="absolute right-0 top-11 w-56 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+                    {isGroupAdmin && (
+                      <button
+                        onClick={openRenameGroup}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-gray-50"
+                      >
+                        Change Group Name
+                      </button>
+                    )}
+                    {isGroupAdmin && (
+                      <button
+                        onClick={() => {
+                          navigate(isClosedBoardsPage ? `/groups/${groupId}` : `/groups/${groupId}/closed`)
+                          setShowSettingsMenu(false)
+                        }}
+                        className="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 transition-colors hover:bg-gray-50"
+                      >
+                        {isClosedBoardsPage ? 'Active Boards' : 'Closed Boards'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            </div>
+          </div>
+          {isGroupAdmin && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm shadow-indigo-600/20 transition-colors hover:bg-indigo-700"
+              >
+                + New Board
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden sm:block">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-6 py-5 flex items-center justify-between gap-4 flex-shrink-0">
         <div className="min-w-0">
@@ -245,7 +334,7 @@ export default function Boards() {
                 {isClosedBoardsPage
                   ? 'Review inactive boards and reopen them when work resumes.'
                   : isGroupAdmin
-                    ? `${boards.length} active board${boards.length === 1 ? '' : 's'} across ${group?.members.length || 0} member${group?.members.length === 1 ? '' : 's'}.`
+                    ? `${boards.length} active board${boards.length === 1 ? '' : 's'}.`
                     : `${boards.length} board${boards.length === 1 ? '' : 's'} available to you.`}
               </p>
             </div>
@@ -301,25 +390,31 @@ export default function Boards() {
           )}
         </div>
       </div>
+      </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          {isGroupAdmin && (
-            <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Active</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{boards.length}</p>
+        <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-8">
+          {/* Admin Overview Board — admins only, pinned at top */}
+          {isGroupAdmin && adminBoard && !isClosedBoardsPage && (
+            <section className="mb-6 sm:mb-8">
+              <div className="mb-3">
+                <h2 className="text-base font-semibold text-slate-900">Admin Overview</h2>
+                <p className="text-sm text-slate-500">Full visibility across all boards in this group.</p>
               </div>
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Closed</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{closedBoards.length}</p>
+              <div
+                onClick={() => navigate(`/boards/${adminBoard._id}/admin-overview`)}
+                className="group flex cursor-pointer items-center gap-3 rounded-xl border-2 border-indigo-200 bg-indigo-50 p-4 shadow-sm transition-all hover:border-indigo-400 hover:shadow-md sm:p-5 max-w-sm"
+              >
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-lg text-white">
+                  ◎
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-indigo-800">Admin Overview</h3>
+                  <p className="mt-0.5 text-xs text-indigo-500">View all articles across all boards</p>
+                </div>
               </div>
-              <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Members</p>
-                <p className="mt-1 text-2xl font-semibold text-slate-900">{group?.members.length || 0}</p>
-              </div>
-            </div>
+            </section>
           )}
 
           {!isClosedBoardsPage && boards.length === 0 ? (
@@ -349,7 +444,7 @@ export default function Boards() {
                   <p className="mt-1 text-sm text-slate-500">Closed boards will appear here for future reference.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                   {closedBoards.map((board) => {
                     const myBoardRole = board.members.find(m => m.user._id === user?._id)?.role
                     const isBoardAdmin = myBoardRole === 'admin'
@@ -357,22 +452,22 @@ export default function Boards() {
                     return (
                       <div
                         key={board._id}
-                        className="group bg-white border border-gray-200 rounded-xl p-5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
+                        className="group flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-slate-300 hover:shadow-md sm:block sm:p-5"
                       >
                         <div
                           onClick={() => navigate(`/boards/${board._id}`)}
-                          className="cursor-pointer"
+                          className="min-w-0 cursor-pointer flex-1 sm:block"
                         >
-                          <div className="mb-4 flex items-start justify-between gap-3">
-                            <div className="w-10 h-10 bg-slate-100 text-slate-700 rounded-lg flex items-center justify-center font-bold text-lg ring-1 ring-slate-200">
+                          <div className="flex items-center justify-between gap-3 sm:mb-4 sm:block">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg font-bold text-slate-700 ring-1 ring-slate-200">
                               {board.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
                               Closed
                             </span>
                           </div>
-                          <h3 className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{board.name}</h3>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <h3 className="truncate font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors sm:whitespace-normal">{board.name}</h3>
+                          <p className="mt-1 text-xs text-slate-500">
                             {board.members.length} member{board.members.length !== 1 ? 's' : ''}
                           </p>
                         </div>
@@ -381,7 +476,7 @@ export default function Boards() {
                           <button
                             onClick={() => handleReopenBoard(board._id)}
                             disabled={reopeningBoardId === board._id}
-                            className="mt-4 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+                            className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100 disabled:opacity-50 sm:mt-4 sm:w-full sm:text-sm"
                           >
                             {reopeningBoardId === board._id ? 'Reopening...' : 'Reopen Board'}
                           </button>
@@ -397,7 +492,7 @@ export default function Boards() {
               <section>
                 <div className="mb-4 flex items-end justify-between gap-4">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Active Boards</h2>
+                    <h2 className="text-base font-semibold text-slate-900">Boards</h2>
                     <p className="text-sm text-slate-500">Open boards your team can keep working in.</p>
                   </div>
                   {isGroupAdmin && closedBoards.length > 0 && (
@@ -416,28 +511,30 @@ export default function Boards() {
                     <p className="mt-1 text-sm text-slate-500">Create or reopen a board to continue.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                     {boards.map((board) => (
                       <div
                         key={board._id}
                         onClick={() => navigate(`/boards/${board._id}`)}
-                        className="group bg-white border border-gray-200 rounded-xl p-5 cursor-pointer shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
+                        className="group flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md sm:block sm:p-5"
                       >
-                        <div className="mb-4 flex items-start justify-between gap-3">
-                          <div className="w-10 h-10 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center font-bold text-lg ring-1 ring-indigo-100">
+                        <div className="flex items-center justify-between gap-3 sm:mb-4 sm:block">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-lg font-bold text-indigo-700 ring-1 ring-indigo-100">
                             {board.name.charAt(0).toUpperCase()}
                           </div>
                           <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700">
                             Active
                           </span>
                         </div>
-                        <h3 className="font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors">{board.name}</h3>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <div className="min-w-0 flex-1 sm:block">
+                          <h3 className="truncate font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors sm:whitespace-normal">{board.name}</h3>
+                          <p className="mt-1 text-xs text-slate-500">
                           {board.members.length} member{board.members.length !== 1 ? 's' : ''}
-                        </p>
-                        <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-3 text-xs font-medium text-slate-400">
-                          <span>Open board</span>
-                          <ArrowRightIcon className="w-4 h-4 text-indigo-500 transition-transform group-hover:translate-x-0.5" />
+                          </p>
+                          <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3 text-[11px] font-medium text-slate-400 sm:mt-5 sm:text-xs">
+                            <span>Open board</span>
+                            <ArrowRightIcon className="w-4 h-4 text-indigo-500 transition-transform group-hover:translate-x-0.5" />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -649,6 +746,9 @@ export default function Boards() {
           </div>
         </div>
       )}
+        <div className="fixed bottom-4 right-4 z-40 sm:hidden">
+          <NotificationPanel collapsed={false} mode="mobile" />
+        </div>
 
     </div>
   )

@@ -20,8 +20,10 @@ axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+    const requestUrl = original?.url || ''
+    const isAuthRequest = requestUrl.includes('/auth/')
 
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && !isAuthRequest && !original._retry) {
       original._retry = true
 
       try {

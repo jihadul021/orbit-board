@@ -83,7 +83,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const myRole = board?.members?.find(m => m.user._id === user?._id)?.role
 
   return (
-    <aside className={`h-screen bg-slate-900 text-slate-300 flex flex-col transition-all duration-300 flex-shrink-0 ${collapsed ? 'w-16' : 'w-64'}`}>
+    <aside className={`hidden md:flex h-screen bg-slate-900 text-slate-300 flex-col transition-all duration-300 flex-shrink-0 ${collapsed ? 'w-16' : 'w-64'}`}>
 
       {/* Logo + Toggle */}
       <div className={`border-b border-slate-800 ${collapsed ? 'px-3 py-4' : 'px-4 py-4'}`}>

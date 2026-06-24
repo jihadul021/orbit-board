@@ -67,6 +67,7 @@ export const getBoardsByGroup = async (req, res) => {
     const requesterIsGroupAdmin = isGroupAdmin(group, req.user._id)
     let boards = await Board.find({
       group: req.params.groupId,
+      isAdminBoard: false,
       ...(requesterIsGroupAdmin ? {} : { 'members.user': req.user._id }),
       status: 'active'
     })
@@ -397,6 +398,7 @@ export const getClosedBoards = async (req, res) => {
     const requesterIsGroupAdmin = isGroupAdmin(group, req.user._id)
     const boards = await Board.find({
       group: req.params.groupId,
+      isAdminBoard: false,
       ...(requesterIsGroupAdmin ? {} : { 'members.user': req.user._id }),
       status: 'closed'
     })
@@ -414,6 +416,122 @@ export const getClosedBoards = async (req, res) => {
 
     res.status(200).json({ boards })
 
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
+
+// @route  GET /api/boards/:id/admin-overview
+export const getAdminOverview = async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id)
+    if (!board) {
+      return res.status(404).json({ message: 'Board not found' })
+    }
+
+    if (!board.isAdminBoard) {
+      return res.status(400).json({ message: 'This is not an admin overview board' })
+    }
+
+    const group = await Group.findById(board.group).select('name')
+
+    // Check requester is a member
+    const isMember = board.members.some(m => idsEqual(m.user, req.user._id))
+    if (!isMember) {
+      return res.status(403).json({ message: 'Not a member of this board' })
+    }
+
+    // Get all non-admin boards in this group
+    const boards = await Board.find({
+      group: board.group,
+      isAdminBoard: false
+    }).select('_id name')
+
+    const boardIds = boards.map(b => b._id)
+    const boardNameMap = {}
+    boards.forEach(b => { boardNameMap[b._id.toString()] = b.name })
+
+    // Get all lists in those boards
+    const List = (await import('../models/List.js')).default
+    const Article = (await import('../models/Article.js')).default
+
+    const lists = await List.find({ board: { $in: boardIds } }).select('_id board')
+    const listIds = lists.map(l => l._id)
+    const listBoardMap = {}
+    lists.forEach(l => { listBoardMap[l._id.toString()] = l.board.toString() })
+
+    // Get all articles in those lists. Review copies are the admin-facing
+    // version once they exist; originals stay available through sourceArticle.
+    const allArticles = await Article.find({ list: { $in: listIds } })
+      .populate('author', 'name email profilePic')
+      .populate('list', '_id name')
+      .populate('board', '_id name')
+      .populate('pickedBy', 'name email profilePic')
+      .populate('lockedBy', 'name email profilePic')
+      .populate('sourceArticle', 'title body status author board list')
+      .sort({ updatedAt: -1 })
+
+    const latestCopyBySource = new Map()
+    allArticles.forEach(article => {
+      if (!article.isCopy || !article.sourceArticle) return
+
+      const sourceId = article.sourceArticle._id?.toString() || article.sourceArticle.toString()
+      if (!latestCopyBySource.has(sourceId)) {
+        latestCopyBySource.set(sourceId, article)
+      }
+    })
+
+    const articles = allArticles.filter(article => {
+      if (article.isCopy) {
+        const sourceId = article.sourceArticle?._id?.toString() || article.sourceArticle?.toString()
+        return latestCopyBySource.get(sourceId)?._id.equals(article._id)
+      }
+
+      return !latestCopyBySource.has(article._id.toString())
+    })
+
+    // Attach overview card metadata to each article
+    const articlesWithBoard = articles.map(a => {
+      const obj = a.toObject()
+      const listId = obj.list?._id?.toString() || obj.list?.toString()
+      const boardId = listBoardMap[listId]
+      obj.originalBoardName = obj.isCopy
+        ? obj.sourceBoardName || 'Unknown Board'
+        : boardNameMap[boardId] || 'Unknown Board'
+      obj.currentListName = obj.list?.name || 'Unknown List'
+      return obj
+    })
+
+    // Group by status buckets
+    const published = articlesWithBoard.filter(a => a.status === 'published')
+    const reviewed = articlesWithBoard.filter(a => a.status === 'reviewed')
+    const other = articlesWithBoard.filter(a => !['published', 'reviewed'].includes(a.status))
+
+    res.status(200).json({ groupName: group?.name || '', published, reviewed, other })
+
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message })
+  }
+}
+
+
+// @route  GET /api/boards/group/:groupId/admin-board
+export const getAdminBoard = async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.groupId)
+    if (!group) return res.status(404).json({ message: 'Group not found' })
+
+    const isMember = group.members.some(m => m.user.equals(req.user._id))
+    if (!isMember) return res.status(403).json({ message: 'Not a member of this group' })
+
+    if (!isGroupAdmin(group, req.user._id)) {
+      return res.status(403).json({ message: 'Admins only' })
+    }
+
+    const board = await Board.findOne({ group: req.params.groupId, isAdminBoard: true })
+      .populate('members.user', 'name email profilePic')
+
+    res.status(200).json({ board })
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message })
   }

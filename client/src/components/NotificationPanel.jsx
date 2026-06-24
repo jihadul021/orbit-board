@@ -29,7 +29,7 @@ const typeMeta = (type) => {
   }
 }
 
-export default function NotificationPanel({ collapsed }) {
+export default function NotificationPanel({ collapsed, mode = 'sidebar' }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
@@ -147,7 +147,13 @@ export default function NotificationPanel({ collapsed }) {
       </button>
 
       {open && (
-        <div className={`fixed bottom-4 z-50 w-[380px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 ${collapsed ? 'left-20' : 'left-72'}`}>
+        <div
+          className={`z-50 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 ${
+            mode === 'mobile'
+              ? 'fixed bottom-20 right-4 w-[min(380px,calc(100vw-2rem))]'
+              : `fixed bottom-4 w-[380px] max-w-[calc(100vw-2rem)] ${collapsed ? 'left-20' : 'left-72'}`
+          }`}
+        >
           <div className="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-4">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">Notifications</h2>

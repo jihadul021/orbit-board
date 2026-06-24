@@ -69,6 +69,7 @@ export const getArticlesByList = async (req, res) => {
       .populate('author', 'name email profilePic')
       .populate('pickedBy', 'name email profilePic')
       .populate('lockedBy', 'name email profilePic')
+      .populate('sourceArticle', 'title body status')
       .sort({ position: 1, createdAt: 1 })
 
     res.status(200).json({ articles })
@@ -87,6 +88,7 @@ export const getArticleById = async (req, res) => {
       .populate('board', 'name')
       .populate('pickedBy', 'name email profilePic')
       .populate('lockedBy', 'name email profilePic')
+      .populate('sourceArticle', 'title body status')
 
     if (!article) {
       return res.status(404).json({ message: 'Article not found' })
@@ -117,7 +119,6 @@ export const updateArticle = async (req, res) => {
 
     const board = await Board.findById(article.board)
 
-    // Only author or editor/admin can update
     const requester = board.members.find(m => m.user.equals(req.user._id))
     if (!requester) {
       return res.status(403).json({ message: 'Not a member of this board' })
@@ -125,16 +126,21 @@ export const updateArticle = async (req, res) => {
 
     if (!ensureBoardIsActive(board, res)) return
 
-    const isAuthor = article.author.equals(req.user._id)
-    const isEditorOrAdmin = ['editor', 'admin'].includes(requester.role)
-
-    if (!isAuthor && !isEditorOrAdmin) {
-      return res.status(403).json({ message: 'Not authorized to update this article' })
-    }
-
     article.title = title || article.title
     article.body = body || article.body
     await article.save()
+
+    if (article.isCopy && article.sourceArticle && ['reviewed', 'published'].includes(article.status)) {
+      await Article.findByIdAndUpdate(article.sourceArticle, {
+        editedTitle: article.title,
+        editedBody: article.body
+      })
+    }
+
+    await article.populate('author', 'name email profilePic')
+    await article.populate('pickedBy', 'name email profilePic')
+    await article.populate('lockedBy', 'name email profilePic')
+    await article.populate('sourceArticle', 'title body status')
     // activity log
     // await logActivity(article._id, req.user._id, 'article_edited')
 

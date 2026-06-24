@@ -13,6 +13,15 @@ export const createGroup = async (req, res) => {
       members: [{ user: req.user._id, role: 'admin' }]
     })
 
+    // Auto-create the Admin Overview board for this group
+    await Board.create({
+      name: 'Admin Overview',
+      group: group._id,
+      createdBy: req.user._id,
+      members: [{ user: req.user._id, role: 'admin' }],
+      isAdminBoard: true
+    })
+
     res.status(201).json({ message: 'Group created', group })
 
   } catch (err) {
