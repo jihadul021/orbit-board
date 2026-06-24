@@ -34,6 +34,10 @@ const boardSchema = new mongoose.Schema({
     type: String,
     enum: ['active', 'closed'],
     default: 'active'
+  },
+  isAdminBoard: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true })
 

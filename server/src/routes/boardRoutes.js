@@ -9,11 +9,13 @@ import {
   updateMemberRole,
   closeBoard,
   reopenBoard,
-  getClosedBoards
+  getClosedBoards,
+  getAdminBoard,
+  getAdminOverview
 } from '../controllers/boardController.js'
 import { protect } from '../middleware/protect.js'
 import { validate } from '../middleware/validate.js'
-import { createBoardSchema, addBoardMemberSchema, updateBoardSchema, updateRoleSchema} from '../lib/validationSchemas.js'
+import { createBoardSchema, addBoardMemberSchema, updateBoardSchema, updateRoleSchema } from '../lib/validationSchemas.js'
 
 const router = express.Router()
 
@@ -23,6 +25,8 @@ router.post('/', validate(createBoardSchema), createBoard)
 router.get('/group/:groupId', getBoardsByGroup)
 router.get('/group/:groupId/closed', getClosedBoards)
 router.get('/:id', getBoardById)
+router.get('/group/:groupId/admin-board', getAdminBoard)
+router.get('/:id/admin-overview', getAdminOverview)
 router.patch('/:id', validate(updateBoardSchema), updateBoard)
 router.post('/:id/members', validate(addBoardMemberSchema), addMember)
 router.delete('/:id/members/:userId', removeMember)

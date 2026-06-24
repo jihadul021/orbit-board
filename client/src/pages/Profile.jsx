@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
 
+const BackIcon = ({ className = 'w-4 h-4' }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+)
+
 export default function Profile() {
   const { user, updateUser } = useAuthStore()
 
@@ -60,9 +66,19 @@ export default function Profile() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
+      <div className="sticky top-0 z-30 border-b border-gray-200 bg-white/95 backdrop-blur sm:hidden">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Link to="/dashboard" className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-slate-700 transition-colors hover:bg-gray-50" aria-label="Back to groups">
+            <BackIcon />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-base font-semibold text-slate-900">Profile</h1>
+          </div>
+        </div>
+      </div>
 
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center space-x-2 text-sm flex-shrink-0">
+      <div className="hidden sm:flex bg-white border-b border-gray-200 px-6 py-4 items-center space-x-2 text-sm flex-shrink-0">
         <Link to="/dashboard" className="text-slate-400 hover:text-indigo-600 transition-colors">Groups</Link>
         <span className="text-slate-300">/</span>
         <span className="text-slate-800 font-semibold">Profile</span>

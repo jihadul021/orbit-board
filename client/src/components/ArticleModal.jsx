@@ -19,6 +19,8 @@ const StatusBadge = ({ status }) => {
     reviewed: 'Reviewed',
     published: 'Published',
   }
+
+  
   return (
     <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status]}`}>
       {labels[status]}
@@ -28,7 +30,7 @@ const StatusBadge = ({ status }) => {
 
 const statusTransitions = {
   writer: ['pending', 'completed', 'published'],
-  editor: ['in_review',  'reviewed', 'published'],
+  editor: ['in_review', 'reviewed', 'published'],
   admin: ['in_review', 'reviewed', 'published'],
 }
 
@@ -36,6 +38,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   const [title, setTitle] = useState(article.title)
   const [body, setBody] = useState(article.body || '')
   const [status, setStatus] = useState(article.status)
+  const [latestArticle, setLatestArticle] = useState(article)
   const [saveStatus, setSaveStatus] = useState('saved')
   const [error, setError] = useState('')
   const [compareMode, setCompareMode] = useState(false)
@@ -51,6 +54,20 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
   useEffect(() => { latestBody.current = body }, [body])
   useEffect(() => { latestTitle.current = title }, [title])
   useEffect(() => { latestStatus.current = status }, [status])
+
+  useEffect(() => {
+    let isMounted = true
+
+    axiosInstance.get(`/articles/${article._id}`)
+      .then(res => {
+        if (isMounted) setLatestArticle(res.data.article)
+      })
+      .catch(() => {})
+
+    return () => {
+      isMounted = false
+    }
+  }, [article._id])
 
   const backgroundSave = useCallback(async (overrides = {}) => {
     setSaveStatus('saving')
@@ -164,10 +181,23 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
 
   const canDelete = !isReadOnly && (myRole === 'admin' || article.author?._id === currentUserId)
 
-  // Show compare button only for writers/admins when edited version exists
-  const hasEditedVersion = article.editedBody !== null && article.editedBody !== undefined
+  // Compare logic
+  const compareArticle = latestArticle || article
+  const sourceArticle = compareArticle.sourceArticle && typeof compareArticle.sourceArticle === 'object'
+    ? compareArticle.sourceArticle
+    : null
+  const originalVersion = compareArticle.isCopy && sourceArticle
+    ? { title: sourceArticle.title, body: sourceArticle.body }
+    : { title: compareArticle.title, body: compareArticle.body }
+  const editedVersion = compareArticle.isCopy
+    ? { title, body }
+    : { title: compareArticle.editedTitle || compareArticle.title, body: compareArticle.editedBody }
+  const hasEditedVersion = compareArticle.isCopy
+    ? Boolean(sourceArticle)
+    : compareArticle.editedBody !== null && compareArticle.editedBody !== undefined
   const canCompare = hasEditedVersion && ['reviewed', 'published'].includes(status)
-
+  const editedVersionLabel = status === 'published' ? 'Published Version' : 'Editor Version'
+  
   return (
     <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
       <div className={`bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] mx-4 sm:mx-0 flex flex-col transition-all duration-300 ${compareMode ? 'max-w-7xl' : 'max-w-4xl'}`}>
@@ -178,8 +208,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
             {compareMode ? 'Compare Versions' : (title || 'Untitled')}
           </span>
           <div className="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-end">
-            {/* Compare toggle button */}
-            {canCompare && !article.isCopy && (
+            {canCompare && (
               <button
                 onClick={() => setCompareMode(!compareMode)}
                 className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-lg border font-medium transition-colors ${
@@ -217,7 +246,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
         {/* Body */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {compareMode ? (
-            // Split view — stacked on mobile, side by side on desktop
             <div className="flex flex-col md:flex-row h-full divide-y md:divide-y-0 md:divide-x divide-gray-200">
 
               {/* Left — Original */}
@@ -228,9 +256,9 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
                   </span>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-                  <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">{article.title}</h2>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">{originalVersion.title}</h2>
                   <ArticleEditor
-                    content={article.body}
+                    content={originalVersion.body}
                     onChange={() => {}}
                     editable={false}
                   />
@@ -241,15 +269,15 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
               <div className="flex-1 flex flex-col min-w-0 min-h-0">
                 <div className="px-3 sm:px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex-shrink-0">
                   <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
-                    Edited Version
+                    {editedVersionLabel}
                   </span>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 sm:p-4">
                   <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">
-                    {article.editedTitle || article.title}
+                    {editedVersion.title}
                   </h2>
                   <ArticleEditor
-                    content={article.editedBody}
+                    content={editedVersion.body}
                     onChange={() => {}}
                     editable={false}
                   />
@@ -283,7 +311,6 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
               />
               <CommentThread articleId={article._id} myRole={myRole} boardId={article.board?._id || article.board} />
 
-              {/* Activity Log — editors and admins only, toggle with checkbox */}
               {(myRole === 'editor' || myRole === 'admin') && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <label className="flex items-center space-x-2 mb-4 cursor-pointer">
@@ -307,7 +334,7 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
           )}
         </div>
 
-        {/* Footer — hidden in compare mode */}
+        {/* Footer */}
         {!compareMode && (
           <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 flex-shrink-0">
             <div className="flex items-center space-x-2 sm:space-x-3 text-xs sm:text-sm w-full sm:w-auto">
