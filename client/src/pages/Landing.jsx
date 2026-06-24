@@ -35,7 +35,7 @@ import axiosInstance from '../api/axios'
     .landing {
         font-family: 'DM Sans', sans-serif;
         background: #0d0f1a;
-        color: #e8e8f0;
+        color: #f4f6ff;
         min-height: 100vh;
         overflow-x: hidden;
     }
@@ -90,7 +90,7 @@ import axiosInstance from '../api/axios'
     .nav-logo-text {
         font-size: 16px;
         font-weight: 500;
-        color: #e8e8f0;
+        color: #f4f6ff;
         letter-spacing: -0.02em;
     }
 
@@ -113,7 +113,7 @@ import axiosInstance from '../api/axios'
         transition: color 0.2s;
         font-family: 'DM Sans', sans-serif;
     }
-    .btn-ghost:hover { color: #e8e8f0; }
+    .btn-ghost:hover { color: #f4f6ff; }
 
     .btn-primary {
         padding: 9px 22px;
@@ -186,7 +186,7 @@ import axiosInstance from '../api/axios'
         font-weight: 400;
         line-height: 1.05;
         letter-spacing: -0.02em;
-        color: #e8e8f0;
+        color: #f8f9ff;
         margin: 0 0 8px;
         max-width: 800px;
     }
@@ -199,7 +199,7 @@ import axiosInstance from '../api/axios'
     .hero-subtitle {
         font-size: clamp(16px, 2.5vw, 20px);
         font-weight: 300;
-        color: #475569;
+        color: #c9d2e8;
         max-width: 520px;
         line-height: 1.65;
         margin: 24px auto 48px;
@@ -247,7 +247,7 @@ import axiosInstance from '../api/axios'
     }
     .btn-hero-outline:hover {
         border-color: rgba(99, 102, 241, 0.5);
-        color: #e8e8f0;
+        color: #f4f6ff;
     }
 
     .divider {
@@ -258,7 +258,7 @@ import axiosInstance from '../api/axios'
 
     .hero-note {
         font-size: 13px;
-        color: #334155;
+        color: #aeb9d2;
         margin-top: 20px;
     }
 
@@ -283,7 +283,7 @@ import axiosInstance from '../api/axios'
         font-weight: 400;
         line-height: 1.1;
         letter-spacing: -0.02em;
-        color: #e8e8f0;
+        color: #f4f6ff;
         margin: 0 0 20px;
         max-width: 600px;
     }
@@ -296,7 +296,7 @@ import axiosInstance from '../api/axios'
     .section-body {
         font-size: 16px;
         font-weight: 300;
-        color: #475569;
+        color: #c3cce0;
         line-height: 1.7;
         max-width: 480px;
     }
@@ -313,11 +313,11 @@ import axiosInstance from '../api/axios'
     }
 
     .feature-card {
-        background: #0d0f1a;
+        background: #111424;
         padding: 36px 32px;
         transition: background 0.2s;
     }
-    .feature-card:hover { background: #111320; }
+    .feature-card:hover { background: #15182a; }
 
     .feature-icon {
         width: 40px;
@@ -336,7 +336,7 @@ import axiosInstance from '../api/axios'
     .feature-title {
         font-size: 15px;
         font-weight: 500;
-        color: #e8e8f0;
+        color: #f4f6ff;
         margin: 0 0 10px;
         letter-spacing: -0.01em;
     }
@@ -344,7 +344,7 @@ import axiosInstance from '../api/axios'
     .feature-desc {
         font-size: 14px;
         font-weight: 300;
-        color: #334155;
+        color: #bcc6dc;
         line-height: 1.65;
         margin: 0;
     }
@@ -372,7 +372,7 @@ import axiosInstance from '../api/axios'
         padding: 32px 28px;
         border-radius: 14px;
         border: 1px solid rgba(99, 102, 241, 0.1);
-        background: #0d0f1a;
+        background: #111424;
         transition: border-color 0.2s, transform 0.2s;
     }
     .role-card:hover {
@@ -410,7 +410,7 @@ import axiosInstance from '../api/axios'
     .role-title {
         font-family: 'DM Serif Display', serif;
         font-size: 22px;
-        color: #e8e8f0;
+        color: #f4f6ff;
         margin: 0 0 12px;
         font-weight: 400;
     }
@@ -418,7 +418,7 @@ import axiosInstance from '../api/axios'
     .role-desc {
         font-size: 14px;
         font-weight: 300;
-        color: #475569;
+        color: #c3cce0;
         line-height: 1.65;
         margin: 0 0 20px;
     }
@@ -434,7 +434,7 @@ import axiosInstance from '../api/axios'
 
     .role-perks li {
         font-size: 13px;
-        color: #475569;
+        color: #b8c2d8;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -469,7 +469,7 @@ import axiosInstance from '../api/axios'
         font-weight: 400;
         line-height: 1.1;
         letter-spacing: -0.02em;
-        color: #e8e8f0;
+        color: #f4f6ff;
         margin: 0 0 20px;
     }
 
@@ -481,7 +481,7 @@ import axiosInstance from '../api/axios'
     .cta-sub {
         font-size: 16px;
         font-weight: 300;
-        color: #475569;
+        color: #c3cce0;
         margin: 0 auto 48px;
         max-width: 400px;
         line-height: 1.6;
@@ -499,12 +499,12 @@ import axiosInstance from '../api/axios'
 
     .footer-copy {
         font-size: 13px;
-        color: #1e293b;
+        color: #98a5bd;
     }
 
     .footer-tagline {
         font-size: 13px;
-        color: #1e293b;
+        color: #adb7cc;
         font-style: italic;
         font-family: 'DM Serif Display', serif;
     }
@@ -573,7 +573,7 @@ import axiosInstance from '../api/axios'
 
       {/* Features */}
       <section className="section">
-        <p className="section-label fade-up">Built for newsrooms</p>
+        <p className="section-label fade-up">Built for content writers</p>
         <h2 className="section-title fade-up">
           Every tool your<br />
           <em>editorial team</em> needs
@@ -655,7 +655,7 @@ import axiosInstance from '../api/axios'
       {/* CTA */}
       <section className="cta-section">
         <h2 className="cta-title fade-up">
-          Your newsroom,<br />
+          Your content workflow,<br />
           <em>finally organised</em>
         </h2>
         <p className="cta-sub fade-up">
@@ -676,8 +676,8 @@ import axiosInstance from '../api/axios'
 
       {/* Footer */}
       <footer className="footer">
-        <span className="footer-copy">© 2025 OrbitBoard</span>
-        <span className="footer-tagline">Built for storytellers</span>
+        <span className="footer-copy">© 2026 OrbitBoard</span>
+        <span className="footer-tagline">Built for Content Teams</span>
       </footer>
     </div>
   )
