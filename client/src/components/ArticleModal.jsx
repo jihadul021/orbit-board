@@ -244,18 +244,18 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div className={`flex-1 flex flex-col ${compareMode ? 'overflow-y-auto md:overflow-hidden' : 'overflow-hidden'}`}>
           {compareMode ? (
-            <div className="flex flex-col md:flex-row h-full divide-y md:divide-y-0 md:divide-x divide-gray-200">
+            <div className="flex flex-col md:flex-row md:h-full divide-y md:divide-y-0 md:divide-x divide-gray-200">
 
               {/* Left — Original */}
-              <div className="flex-1 flex flex-col min-w-0 min-h-0">
+              <div className="flex flex-col min-w-0 md:min-h-0 md:flex-1">
                 <div className="px-3 sm:px-4 py-2 bg-gray-50 border-b border-gray-200 flex-shrink-0">
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Original Version
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                <div className="p-3 sm:p-4 md:flex-1 md:overflow-y-auto">
                   <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">{originalVersion.title}</h2>
                   <ArticleEditor
                     content={originalVersion.body}
@@ -266,13 +266,13 @@ export default function ArticleModal({ article, myRole, onClose, onSave, isReadO
               </div>
 
               {/* Right — Edited version */}
-              <div className="flex-1 flex flex-col min-w-0 min-h-0">
+              <div className="flex flex-col min-w-0 md:min-h-0 md:flex-1">
                 <div className="px-3 sm:px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex-shrink-0">
                   <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">
                     {editedVersionLabel}
                   </span>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                <div className="p-3 sm:p-4 md:flex-1 md:overflow-y-auto">
                   <h2 className="text-base sm:text-lg font-bold text-slate-800 mb-4">
                     {editedVersion.title}
                   </h2>

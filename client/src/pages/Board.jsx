@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, Link, useLocation, useNavigate } from 'react-router-dom'
 import axiosInstance from '../api/axios'
 import useAuthStore from '../store/authStore'
@@ -50,6 +50,13 @@ const StatusBadge = ({ status }) => {
     </span>
   )
 }
+
+const trackedStatuses = [
+  { key: 'completed', label: 'Completed', accent: 'border-cyan-200 bg-cyan-50 text-cyan-700' },
+  { key: 'in_review', label: 'In Review', accent: 'border-amber-200 bg-amber-50 text-amber-700' },
+  { key: 'reviewed', label: 'Reviewed', accent: 'border-blue-200 bg-blue-50 text-blue-700' },
+  { key: 'published', label: 'Published', accent: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+]
 
 export default function Board() {
   const { id: boardId } = useParams()
@@ -145,6 +152,16 @@ export default function Board() {
   const isClosed = board?.status === 'closed'
   const boardGroupId = typeof board?.group === 'object' ? board.group._id : board?.group
   const boardGroupName = groupName || (typeof board?.group === 'object' ? board.group.name : '') || 'All Boards'
+  const allArticles = useMemo(() => Object.values(articles).flat(), [articles])
+  const articleStats = useMemo(() => {
+    const counts = trackedStatuses.reduce((acc, item) => ({ ...acc, [item.key]: 0 }), {})
+    allArticles.forEach((article) => {
+      if (counts[article.status] !== undefined) {
+        counts[article.status] += 1
+      }
+    })
+    return counts
+  }, [allArticles])
 
   const handleAddList = async (e) => {
     e.preventDefault()
@@ -295,22 +312,6 @@ export default function Board() {
       setListActionLoading('')
     }
   }
-  const handleReturnArticle = async (copyId) => {
-    if (!confirm('Delete this copy? The original article will be unlocked and keep its current status.')) return
-    try {
-      await axiosInstance.delete(`/review/copy/${copyId}`)
-      setArticles(prev => {
-        const updated = {}
-        for (const listId in prev) {
-          updated[listId] = prev[listId].filter(a => a._id !== copyId)
-        }
-        return updated
-      })
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   const buildArticleMoveState = (prev, articleId, sourceListId, targetListId, targetIndex) => {
     const sourceArticles = [...(prev[sourceListId] || [])]
     const targetArticles = sourceListId === targetListId
@@ -471,7 +472,7 @@ export default function Board() {
                 )}
               </div>
               <p className="mt-1 text-xs text-slate-500">
-                {lists.length} list{lists.length === 1 ? '' : 's'} · {Object.values(articles).flat().length} article{Object.values(articles).flat().length === 1 ? '' : 's'}
+                {lists.length} list{lists.length === 1 ? '' : 's'} · {allArticles.length} article{allArticles.length === 1 ? '' : 's'}
               </p>
             </div>
             <div className="flex flex-shrink-0 items-center gap-2">
@@ -566,7 +567,7 @@ export default function Board() {
                 )}
               </div>
               <p className="mt-0.5 text-sm text-slate-500">
-                {lists.length} list{lists.length === 1 ? '' : 's'} · {Object.values(articles).flat().length} article{Object.values(articles).flat().length === 1 ? '' : 's'}
+                {lists.length} list{lists.length === 1 ? '' : 's'} · {allArticles.length} article{allArticles.length === 1 ? '' : 's'}
               </p>
             </div>
           </div>
@@ -636,6 +637,24 @@ export default function Board() {
         </div>
       </header>
       </div>
+
+      <section className="flex-shrink-0 border-b border-gray-200 bg-white px-3 py-3 sm:px-6 sm:py-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          {trackedStatuses.map((item) => (
+            <div
+              key={item.key}
+              className={`rounded-lg border px-3 py-2.5 shadow-sm sm:px-4 ${item.accent}`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
+                {item.label}
+              </p>
+              <p className="mt-1 text-2xl font-semibold leading-none">
+                {articleStats[item.key]}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-slate-100/70 p-3 sm:p-6">
@@ -790,15 +809,6 @@ export default function Board() {
                       </button>
                     )}
 
-                    {/* Return article button — editor/admin on copies */}
-                    {(isEditor || isAdmin) && article.isCopy && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleReturnArticle(article._id) }}
-                        className="mt-2.5 w-full rounded-lg border border-red-200 py-1.5 text-[11px] font-medium text-red-600 transition-colors hover:bg-red-50 sm:mt-3 sm:text-xs"
-                      >
-                        Delete Copy
-                      </button>
-                    )}
                   </div>
                 ))}
                 {dragOverPosition?.listId === list._id && dragOverPosition.index === (articles[list._id] || []).length && (
